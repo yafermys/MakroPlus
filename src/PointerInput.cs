@@ -19,7 +19,8 @@ namespace AkilliKisayol {
  public sealed class PointerEngine:IDisposable {
   readonly KeyboardEngine keyboard;readonly Native.HookProc callback;IntPtr hook;int vertical,horizontal,lastMods;IntPtr lastWindow;
   public PointerEngine(KeyboardEngine engine){keyboard=engine;callback=OnMouse;hook=Native.SetWindowsHookEx(14,callback,Native.GetModuleHandle(null),0);if(hook==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error(),"Mouse hook could not be created.");}
-  IntPtr OnMouse(int code,IntPtr message,IntPtr data){if(code>=0)try{if(Handle(message.ToInt32(),(Native.MouseEvent)Marshal.PtrToStructure(data,typeof(Native.MouseEvent))))return new IntPtr(1);}catch(Exception e){keyboard.ReportFault(e.Message);}return Native.CallNextHookEx(hook,code,message,data);}
+  internal static bool HandlesMessage(int message){switch(message){case 0x201:case 0x202:case 0x204:case 0x205:case 0x207:case 0x208:case 0x20A:case 0x20B:case 0x20C:case 0x20E:return true;default:return false;}}
+  IntPtr OnMouse(int code,IntPtr message,IntPtr data){if(code<0)return Native.CallNextHookEx(hook,code,message,data);int id=message.ToInt32();if(HandlesMessage(id))try{if(Handle(id,(Native.MouseEvent)Marshal.PtrToStructure(data,typeof(Native.MouseEvent))))return new IntPtr(1);}catch(Exception e){keyboard.ReportFault(e.Message);}return Native.CallNextHookEx(hook,code,message,data);}
   internal bool Handle(int message,Native.MouseEvent input){
    if(input.Extra==new UIntPtr(0x414B534D)||(input.Flags&1)!=0&&!keyboard.AllowRemappedInput)return false;int key=0;bool up=false;
    switch(message){case 0x201:key=1;break;case 0x202:key=1;up=true;break;case 0x204:key=2;break;case 0x205:key=2;up=true;break;case 0x207:key=4;break;case 0x208:key=4;up=true;break;case 0x20B:case 0x20C:int button=(int)(input.Data>>16);if(button!=1&&button!=2)return false;key=button==1?5:6;up=message==0x20C;break;

@@ -64,12 +64,16 @@ namespace AkilliKisayol {
    if(SendInput((uint)inputs.Count,inputs.ToArray(),Marshal.SizeOf(typeof(INPUT)))!=inputs.Count)throw new Win32Exception("Text could not be sent; check the target's permissions.");
   }
   public static void SendRaw(params int[] keys){var inputs=keys.Select(k=>KeyInput(Math.Abs(k),k<0)).ToArray();if(SendInput((uint)inputs.Length,inputs,Marshal.SizeOf(typeof(INPUT)))!=inputs.Length)throw new Win32Exception("Shortcut key could not be sent to the source application.");}
+  static readonly bool[] Extended=ExtendedKeys();
+  static bool[] ExtendedKeys(){var table=new bool[256];foreach(int key in new[]{33,34,35,36,37,38,39,40,45,46,91,92,111,144,165,163,173,174,175,176,177,179})table[key]=true;return table;}
   static INPUT KeyInput(int key,bool up) {
-   bool extended=new[]{33,34,35,36,37,38,39,40,45,46,91,92,111,144,165,163,173,174,175,176,177,179}.Contains(key);
+   bool extended=key>=0&&key<Extended.Length&&Extended[key];
    return new INPUT {type=1,u=new InputUnion {key=new KEYBDINPUT {vk=(ushort)key,flags=(uint)((up?2:0)|(extended?1:0)),extra=new UIntPtr(0x414B534D)}}};
   }
+  internal static uint KeyFlagsForTest(int key,bool up){return KeyInput(key,up).u.key.flags;}
  }
  public sealed class KeyboardEngine : IDisposable {
+  static readonly string OwnPath=System.Reflection.Assembly.GetExecutingAssembly().Location;
   internal bool AllowOwnPointerForTest;readonly PointerEngine pointer;IntPtr cachedWindow;string cachedPath="";DateTime cacheUntil;
   readonly Native.HookProc callback; readonly IntPtr hook;
   readonly HashSet<int> pressed=new HashSet<int>(); readonly HashSet<int> blocked=new HashSet<int>();
@@ -81,7 +85,9 @@ namespace AkilliKisayol {
   public event Action<PhysicalKey> PhysicalInput;
   public Func<PhysicalKey,bool> InputObserver;
   public int CurrentMods {get{return Mods;}}
-  internal bool WouldHandlePointer(int key){if(Paused||pressed.Contains(165))return false;IntPtr window=Native.GetForegroundWindow();string app=ForegroundPath(window);if(!AllowOwnPointerForTest&&Rules.SameApp(app,System.Reflection.Assembly.GetExecutingAssembly().Location))return false;return Bindings!=null&&Rules.Resolve(Bindings(),Mods,key,app,prefixKey>0&&!prefixForwarded&&Mods==prefixMods?prefixKey:0)!=null;}
+  internal Func<IntPtr,string> QueryForegroundPath=Native.ProcessPath;
+  static bool HasCandidate(List<Binding> bindings,int key,int mods){for(int i=0;i<bindings.Count;i++){var item=bindings[i];if(item.Enabled&&item.Mods==mods&&(item.Key==key||item.PrefixKey==key))return true;}return false;}
+  internal bool WouldHandlePointer(int key){if(Paused||pressed.Contains(165)||Bindings==null)return false;var bindings=Bindings();int mods=Mods;if(!HasCandidate(bindings,key,mods))return false;IntPtr window=Native.GetForegroundWindow();string app=ForegroundPath(window);if(!AllowOwnPointerForTest&&Rules.SameApp(app,OwnPath))return false;return Rules.Resolve(bindings,mods,key,app,prefixKey>0&&!prefixForwarded&&mods==prefixMods?prefixKey:0)!=null;}
   internal void ScheduleGesture(Binding binding,IntPtr window){if(!Paused&&Capture==null&&Native.GetForegroundWindow()==window)Queue(binding,window);}
   public void ResetPending(){pending=null;replay.Clear();prefixUsed=true;timer.Stop();cacheUntil=DateTime.MinValue;}
   bool flushPosted,disposed;
@@ -126,8 +132,11 @@ namespace AkilliKisayol {
     }
     if(eat) return true;
     if(!up && !repeat && !Paused && !Native.Modifier(key) && !pressed.Contains(165)) {
-     IntPtr window=Native.GetForegroundWindow();string app=ForegroundPath(window);if(!AllowOwnPointerForTest&&InputKeys.IsPointer(key)&&Rules.SameApp(app,System.Reflection.Assembly.GetExecutingAssembly().Location))return false;
-     var bindings=Bindings==null?new List<Binding>():Bindings();
+     IntPtr window=Native.GetForegroundWindow();var bindings=Bindings==null?new List<Binding>():Bindings();int mods=Mods;
+     // The process path costs OpenProcess/QueryFullProcessImageName; skip it for keys no binding can use.
+     bool pointerPrefix=InputKeys.IsPointer(key)&&prefixKey>0&&!prefixForwarded;
+     string app=HasCandidate(bindings,key,mods)||pointerPrefix?ForegroundPath(window):"";
+     if(!AllowOwnPointerForTest&&InputKeys.IsPointer(key)&&Rules.SameApp(app,OwnPath))return false;
      if(prefixKey>0&&!prefixForwarded){
       if(window!=prefixWindow){prefixUsed=true;return false;}
       var chord=Rules.Resolve(bindings,Mods,key,app,prefixKey);
@@ -147,7 +156,8 @@ namespace AkilliKisayol {
   }
   void AddReplay(int mods,int key,IntPtr window){replay.Add(Tuple.Create(mods,key,window));timer.Start();}
   void EmitCapture(int mods,int key,int prefix){var handler=Capture;bool altgr=pressed.Contains(165);Application.Current.Dispatcher.BeginInvoke(new Action(()=>{if(Capture==handler)handler(mods,key,prefix,altgr);}));}
-  string ForegroundPath(IntPtr window){if(window!=cachedWindow||DateTime.UtcNow>=cacheUntil){cachedWindow=window;cachedPath=Native.ProcessPath(window);cacheUntil=DateTime.UtcNow.AddMilliseconds(500);}return cachedPath;}
+  string ForegroundPath(IntPtr window){if(window!=cachedWindow||DateTime.UtcNow>=cacheUntil){cachedWindow=window;cachedPath=QueryForegroundPath(window);cacheUntil=DateTime.UtcNow.AddMilliseconds(500);}return cachedPath;}
+  internal void ExpireForegroundCacheForTest(){cacheUntil=DateTime.MinValue;}
   internal void ReportFault(string message){if(Fault!=null)Application.Current.Dispatcher.BeginInvoke(new Action(()=>Fault(message)));}
   void Queue(Binding b,IntPtr window){if(pending==null){pending=b.Copy();pendingWindow=window;deadline=DateTime.UtcNow.AddSeconds(3);timer.Start();if(pressed.Count==0)PostFlush();}}
   internal void FlushForTest(){Tick(null,EventArgs.Empty);}

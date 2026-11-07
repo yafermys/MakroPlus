@@ -21,6 +21,13 @@ jobs:
       - name: Compile Windows app
         shell: powershell
         run: .\build.ps1 -OutputDirectory dist\ci
+      - name: Test storage ordering and hook metadata without desktop input
+        shell: powershell
+        run: |
+          $process=Start-Process -FilePath .\dist\ci\MakroPlus.exe -ArgumentList '--persistence-test' -WindowStyle Hidden -PassThru -Wait
+          $report=Get-Content -LiteralPath .\dist\ci\persistence-test-results.json -Raw | ConvertFrom-Json
+          if($process.ExitCode -ne 0 -or $report.status -ne 'PASS'){throw 'Headless persistence checks failed.'}
+          Write-Host "PASS: $($report.completed) headless checks"
       - name: Retain build output
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

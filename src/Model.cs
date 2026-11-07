@@ -100,15 +100,23 @@ namespace AkilliKisayol {
     return state;
    }
   }
-  public static void Write(State state,string path) {
-   lock(writeGate){WriteCore(state,Path.GetFullPath(path));}
+  static long snapshotSequence;static readonly Dictionary<string,long> writtenSequence=new Dictionary<string,long>(StringComparer.OrdinalIgnoreCase);
+  public sealed class Snapshot {internal readonly byte[] Data;internal readonly long Sequence;internal Snapshot(byte[] data,long sequence){Data=data;Sequence=sequence;}}
+  // Capture mutable state on its owning thread; background writers only receive bytes.
+  public static Snapshot Capture(State state){long sequence=System.Threading.Interlocked.Increment(ref snapshotSequence);using(var stream=new MemoryStream()){new DataContractJsonSerializer(typeof(State)).WriteObject(stream,state);return new Snapshot(stream.ToArray(),sequence);}}
+  public static void Write(State state,string path) {Write(Capture(state),path);}
+  // Snapshots may finish writing out of order; an older one must never replace a newer file.
+  public static void Write(Snapshot snapshot,string path) {
+   if(snapshot==null)throw new ArgumentNullException("snapshot");
+   string full=Path.GetFullPath(path);long written;
+   lock(writeGate){if(writtenSequence.TryGetValue(full,out written)&&written>=snapshot.Sequence)return;WriteCore(snapshot.Data,full);writtenSequence[full]=snapshot.Sequence;}
   }
-  static void WriteCore(State state,string path){
+  static void WriteCore(byte[] data,string path){
    Directory.CreateDirectory(Path.GetDirectoryName(path));
    string temp=path+"."+Guid.NewGuid().ToString("N")+".tmp";
    try{
    using(var stream=new FileStream(temp,FileMode.Create,FileAccess.Write,FileShare.None)) {
-    new DataContractJsonSerializer(typeof(State)).WriteObject(stream,state); stream.Flush(true);
+    stream.Write(data,0,data.Length); stream.Flush(true);
    }
    if(File.Exists(path)) File.Replace(temp,path,path+".bak"); else File.Move(temp,path);
    }finally{if(File.Exists(temp))File.Delete(temp);}

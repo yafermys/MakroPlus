@@ -1,4 +1,4 @@
-MAKRO+ 2.6.2 — WINDOWS 10/11 x64
+MAKRO+ 2.6.3 — WINDOWS 10/11 x64
 
 GET STARTED
 1. Extract the entire ZIP. Do not run the executable inside the ZIP.

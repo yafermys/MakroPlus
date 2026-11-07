@@ -19,6 +19,7 @@ namespace AkilliKisayol {
   [STAThread] public static int Main(string[] args) {
    var culture=System.Globalization.CultureInfo.GetCultureInfo("en-US");System.Globalization.CultureInfo.DefaultThreadCurrentCulture=culture;System.Globalization.CultureInfo.DefaultThreadCurrentUICulture=culture;Thread.CurrentThread.CurrentCulture=culture;Thread.CurrentThread.CurrentUICulture=culture;
    if(args.Contains("--device-model-test"))return ProductTests.Real();
+   if(args.Contains("--persistence-test"))return ResponsivenessTests.Headless();
    if(args.Contains("--server-model-test"))return ModernTests.Real();
    if(args.Contains("--gesture-model-test"))return GesturePromptTests.Real();
    if(args.Contains("--compat-model-test"))return CompatibilityTests.Real(args.Length>1?args[1]:Storage.Read(Storage.FilePath).ModelPath);
@@ -77,7 +78,9 @@ namespace AkilliKisayol {
  }
  public partial class MainWindow : Window {
   readonly State state;readonly string settingsFile;readonly KeyboardEngine engine;readonly Forms.NotifyIcon tray;
-  readonly System.Windows.Threading.DispatcherTimer historySave=new System.Windows.Threading.DispatcherTimer();bool historyDirty;
+  readonly System.Windows.Threading.DispatcherTimer historySave=new System.Windows.Threading.DispatcherTimer();bool historyDirty;Task historyWrite;
+  internal Func<State,Storage.Snapshot> CaptureHistory=Storage.Capture;
+  internal Func<Storage.Snapshot,string,Task> WriteHistoryAsync=(snapshot,path)=>Task.Run(()=>Storage.Write(snapshot,path));
   readonly Grid content=new Grid();readonly TextBlock heading=Theme.Text("",28);readonly TextBlock subtitle=Theme.Text("",13,"Muted");
   readonly TextBox search=new TextBox{MinWidth=210,Width=300};readonly ComboBox source=new ComboBox{Width=180,Margin=new Thickness(10,0,0,0)};
   readonly DataGrid table=new DataGrid(); readonly TextBlock detail=Theme.Text("Select a record.",12,"Muted");
@@ -86,7 +89,7 @@ namespace AkilliKisayol {
   string view="Home";Button pause,editRow,toggleRow,deleteRow,restoreRow,sourceRow;
   public MainWindow(State data,string settingsPath=null) {
    settingsFile=settingsPath??Storage.FilePath;state=data;ThemeCatalog.Normalize(state);if(state.ModelOptions==null)state.ModelOptions=new ModelOptions();Actions.StepIntervalMs=state.StepIntervalMs??15;Profiles.Normalize(state);Theme.Apply(state.ThemeId,state.Dark,state.CustomThemes);Style=(Style)Application.Current.FindResource(typeof(Window));Title="Makro+";Width=1320;Height=860;MinWidth=1000;MinHeight=650;WindowStartupLocation=WindowStartupLocation.CenterScreen;Brand.Fit(this);
-   historySave.Interval=TimeSpan.FromMilliseconds(750);historySave.Tick+=(s,e)=>{historySave.Stop();if(historyDirty){historyDirty=false;Save();}};
+   historySave.Interval=TimeSpan.FromMilliseconds(750);historySave.Tick+=(s,e)=>{historySave.Stop();if(historyDirty)SaveHistory();};
    engine=new KeyboardEngine{Bindings=()=>Profiles.Effective(state),Paused=state.Paused,AllowRemappedInput=state.AllowRemappedInput};
    engine.Fire=(b,w)=>Actions.Run(b,w,result=>Log(b.Name,result));engine.Fault=message=>Log("Input engine",message);
    InitializeFeatures();
@@ -106,14 +109,32 @@ namespace AkilliKisayol {
    table.MouseDoubleClick+=(s,e)=>EditSelected();
    tray=new Forms.NotifyIcon{Text="Makro+",Icon=Brand.TrayIcon(),Visible=true};
    var menu=new Forms.ContextMenuStrip();menu.Items.Add("Show",null,(s,e)=>Restore());menu.Items.Add("Pause / resume",null,(s,e)=>pause.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));var profileMenu=new Forms.ToolStripMenuItem("Profile");profileMenu.DropDownOpening+=(s,e)=>{profileMenu.DropDownItems.Clear();foreach(var item in state.Profiles){string id=item.Id;var choice=new Forms.ToolStripMenuItem(item.Name){Checked=id==state.ActiveProfileId};choice.Click+=(a,b)=>SwitchProfile(id);profileMenu.DropDownItems.Add(choice);}};menu.Items.Add(profileMenu);menu.Items.Add("Toggle touchpad shapes",null,(s,e)=>{SetGestureEnabled(!state.Gestures.Enabled);Render();});menu.Items.Add("Exit",null,(s,e)=>Close());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Restore();
-   Closed+=(s,e)=>{closed=true;historySave.Stop();if(historyDirty)Save();gestures.Dispose();guide.Dispose();Actions.CancelWorkflow();LocalLlm.Shared.Dispose();engine.Dispose();tray.Dispose();};UpdatePause();Render();
+   Closed+=(s,e)=>{closed=true;historySave.Stop();Actions.CancelWorkflow();engine.Dispose();gestures.Dispose();guide.Dispose();if(historyDirty||historyWrite!=null&&historyWrite.Status!=TaskStatus.RanToCompletion)Save();LocalLlm.Shared.Dispose();tray.Dispose();};UpdatePause();Render();
    Loaded+=(s,e)=>{if(!Environment.GetCommandLineArgs().Contains("--self-test"))ScanLinks();};
    foreach(var b in state.Bindings.Where(b=>b.Enabled)) {string error=Rules.Validate(b,state.Bindings);if(error!=null){b.Enabled=false;Log(b.Name,"Safe install: disabled • "+error);}}
    Refresh();
   }
   void Restore(){Show();WindowState=WindowState.Normal;Activate();}
   void UpdatePause(){pause.Content=state.Paused?"▶ Resume shortcuts":"Ⅱ Pause shortcuts";string text="Makro+ • "+Profiles.Name(state)+(state.Paused?" • paused":"");tray.Text=text.Length>63?text.Substring(0,63):text;}
-  bool Save(){try{Storage.Write(state,settingsFile);return true;}catch(Exception e){MessageBox.Show(this,"Could not save settings: "+e.Message,"Disk error");return false;}}
+  bool Save(){try{Storage.Write(state,settingsFile);historyDirty=false;historySave.Stop();historyWrite=null;return true;}catch(Exception e){if(closed)MessageBox.Show("Could not save settings: "+e.Message,"Disk error");else MessageBox.Show(this,"Could not save settings: "+e.Message,"Disk error");return false;}}
+  // The fsync runs off the UI thread: the input hooks are serviced there, so a slow disk would stall typing system-wide.
+  void SaveHistory(){
+   try{
+    var snapshot=CaptureHistory(state);var task=WriteHistoryAsync(snapshot,settingsFile);
+    historyWrite=task;historyDirty=false;
+    task.ContinueWith(completed=>{
+     if(!completed.IsFaulted)return;
+     // Observe failures on the worker even if the window/dispatcher has closed.
+     var error=completed.Exception.GetBaseException();
+     try{Dispatcher.BeginInvoke(new Action(()=>{if(!closed&&ReferenceEquals(historyWrite,completed)){historyDirty=true;status.Text="History could not be saved: "+error.Message+". Retry on the next action or when closing.";}}));}catch(InvalidOperationException){}
+    },CancellationToken.None,TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);
+   }catch(Exception error){historyDirty=true;status.Text="History could not be saved: "+error.Message+". Retry on the next action or when closing.";}
+  }
+  internal void LogHistoryForTest(string name){Log(name,"Fixture action");}
+  internal void FlushHistoryForTest(){historySave.Stop();if(historyDirty)SaveHistory();}
+  internal bool HistoryDirtyForTest {get{return historyDirty;}}
+  internal Task HistoryWriteForTest {get{return historyWrite;}}
+  internal bool SaveSettingsForTest(){return Save();}
   void Log(string name,string result){state.History.Insert(0,new Activity{Time=DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz"),Name=name,Result=result});if(state.History.Count>200)state.History.RemoveRange(200,state.History.Count-200);historyDirty=true;if(!historySave.IsEnabled)historySave.Start();status.Text=result;if(view=="History")Render();}
   StackPanel Header(string title,string note){var p=new StackPanel{Margin=new Thickness(0,0,0,22)};heading.Text=title;subtitle.Text=note;p.Children.Add(heading);p.Children.Add(subtitle);return p;}
   void Render(){if(gestures!=null)gestures.Refresh();

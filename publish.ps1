@@ -1,4 +1,4 @@
-param([string]$OutputDirectory = 'release\MakroPlus-2.6.2-win-x64', [switch]$Archive, [switch]$SkipBuild, [string]$BuildDirectory = 'dist\makroplus-2.6.2')
+param([string]$OutputDirectory = 'release\MakroPlus-2.6.3-win-x64', [switch]$Archive, [switch]$SkipBuild, [string]$BuildDirectory = 'dist\makroplus-2.6.3')
 $ErrorActionPreference = 'Stop'
 $base = $PSScriptRoot
 $build = Join-Path $base $BuildDirectory
@@ -40,6 +40,7 @@ $conflictPerformance = Join-Path $build 'conflict-performance-test.json'
 if (Test-Path -LiteralPath $conflictPerformance) { Copy-Item -LiteralPath $conflictPerformance -Destination $destination }
 $dispatchTiming = Join-Path $build 'input-dispatch-timing.json'
 if (Test-Path -LiteralPath $dispatchTiming) { Copy-Item -LiteralPath $dispatchTiming -Destination $destination }
+foreach($name in @('history-persistence-performance.json','persistence-test-results.json')){if(Test-Path -LiteralPath (Join-Path $build $name)){if($name -eq 'persistence-test-results.json'){$checks=Get-Content -LiteralPath (Join-Path $build $name) -Raw|ConvertFrom-Json;if($checks.status -ne 'PASS'){throw 'Successful headless persistence report required.'};Add-Content -LiteralPath (Join-Path $destination 'TEST-RESULTS.txt') -Value "$name : PASS ($($checks.completed) checks)" -Encoding UTF8};Copy-Item -LiteralPath (Join-Path $build $name) -Destination $destination}}
 foreach($name in @('guide-test.json','model-install-merge-test.json')) {
     $source=Join-Path $build $name
     if(Test-Path -LiteralPath $source){$result=Get-Content -LiteralPath $source -Raw|ConvertFrom-Json;if($result.status -ne 'PASS'){throw "Unsuccessful report: $name"};Add-Content -LiteralPath (Join-Path $destination 'TEST-RESULTS.txt') -Value "$name : PASS" -Encoding UTF8}
@@ -52,7 +53,7 @@ $compatibility = @(Get-ChildItem -LiteralPath $build -Filter 'compat-*.json' -Fi
 })
 if($compatibility.Count -gt 0){ConvertTo-Json -InputObject $compatibility -Depth 6 | Set-Content -LiteralPath (Join-Path $destination 'model-compatibility-summary.json') -Encoding UTF8}
 $files = Get-ChildItem -LiteralPath $destination -Recurse -File | ForEach-Object { [pscustomobject]@{path=$_.FullName.Substring($destination.Length+1).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()} }
-@{name='Makro+';version='2.6.2';platform='Windows 10/11 x64';modelIncluded=$false;files=@($files)} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'package-manifest.json') -Encoding UTF8
+@{name='Makro+';version='2.6.3';platform='Windows 10/11 x64';modelIncluded=$false;files=@($files)} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'package-manifest.json') -Encoding UTF8
 if ($Archive) {
     Add-Type -AssemblyName System.IO.Compression
     $zipPath = $destination + '.zip'

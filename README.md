@@ -19,9 +19,9 @@ review its plan, then run it directly with your chosen input.
 
 ## Download
 
-**[Download Makro+ 2.6.2 for Windows x64](https://github.com/yafermys/MakroPlus/releases/download/v2.6.2/MakroPlus-2.6.2-win-x64.zip)**
+**[Download Makro+ 2.6.3 for Windows x64](https://github.com/yafermys/MakroPlus/releases/download/v2.6.3/MakroPlus-2.6.3-win-x64.zip)**
 
-[All releases](https://github.com/yafermys/MakroPlus/releases) · [Matching source archive](https://github.com/yafermys/MakroPlus/releases/download/v2.6.2/MakroPlus-2.6.2-source.zip)
+[All releases](https://github.com/yafermys/MakroPlus/releases) · [Matching source archive](https://github.com/yafermys/MakroPlus/releases/download/v2.6.3/MakroPlus-2.6.3-source.zip)
 
 Extract the Windows ZIP before running `MakroPlus.exe`.
 The matching `.sha256` file verifies the ZIP. GitHub's source archives contain
@@ -35,7 +35,7 @@ assignments; register/select their installed executable files.
 
 ## Run or install
 
-Extract the complete `release/MakroPlus-2.6.2-win-x64.zip`, then open `MakroPlus.exe`. Use `Install.cmd` for a per-user installation and Start menu/desktop shortcuts. Read `START_HERE.txt` and the complete offline `USER_GUIDE.html` in the package (also Settings → Open user guide). The package includes the llama.cpp runtime, Microsoft-signed Visual C++ installer, licenses, a test summary and SHA-256 manifest. **No language model weights are bundled or automatically downloaded.** This build is unsigned.
+Extract the complete `release/MakroPlus-2.6.3-win-x64.zip`, then open `MakroPlus.exe`. Use `Install.cmd` for a per-user installation and Start menu/desktop shortcuts. Read `START_HERE.txt` and the complete offline `USER_GUIDE.html` in the package (also Settings → Open user guide). The package includes the llama.cpp runtime, Microsoft-signed Visual C++ installer, licenses, a test summary and SHA-256 manifest. **No language model weights are bundled or automatically downloaded.** This build is unsigned.
 
 The redesigned Home separates prompt creation, macro recording and direct assignment. Everyday input/workspace pages stay visible; secondary tools are grouped under **Tools & settings**. Prompt editing puts the request and preview first, with advanced trigger/app settings collapsed.
 
@@ -81,7 +81,9 @@ API keys use Windows DPAPI for the current user and are omitted from exported se
 
 Saved shortcuts execute their saved plans without invoking a model. Default inter-step delay is **15 ms**, replacing the previous fixed 100 ms; Settings offers 0/15/50/100/250 ms. Explicit waits and recorded pauses are preserved; no automatic delay follows an explicit wait or the final step. Shortcuts still wait for the activation keys to be released, preventing held modifiers from corrupting output. On key release, pending execution is posted immediately at WPF input priority; the 8 ms timer remains as a fallback and stops when idle. Already-foreground focus steps avoid repeated window enumeration and a redundant 100 ms activation wait. HTTP connections and negotiated API capabilities are reused; responses are bounded to 128 KB and cancellation closes stalled response streams.
 
-History writes are coalesced over 750 ms and flushed on clean exit, reducing repeated synchronous disk flushes after bursts of actions. A forced process kill can lose the latest unsaved history entries. Shortcut/configuration edits still save immediately. Application metadata for prompt requests is prepared off the UI thread. All-shortcut rendering no longer computes a full conflict report just to display dashboard statistics.
+History writes are coalesced over 750 ms. A detached byte snapshot is captured on the UI thread and disk I/O, including the durable flush and atomic replacement, runs on a worker. Per-file sequence numbers reject older or duplicate snapshots, so a late history task cannot overwrite a newer configuration save. Capture/write failures keep unsaved history eligible for retry, and closing saves synchronously when necessary after removing the input hooks. Configuration edits remain synchronous and may wait for a write already in progress. A forced process kill can still lose pending history.
+
+Keyboard and mouse hooks still run on the UI thread; this change removes background history disk work from that thread, rather than isolating hooks from every possible UI pause. Unsupported mouse messages, including movement, leave before marshaling. Foreground process lookup is skipped for keys/buttons/wheel inputs with no enabled candidate at the current modifiers, except when a pending prefix needs the own-window pointer check. The executable path and extended-key lookup table are cached. These small hook optimizations are tested by behavior and lookup counts; no reliable per-event microsecond speedup is claimed. Application metadata for prompt requests is prepared off the UI thread, and dashboard statistics avoid rebuilding hidden conflict tables.
 
 The application uses English labels, action names, help, errors, menus, default profiles and numeric formatting. Legacy Turkish action identifiers and built-in profile names migrate when loading settings. User-entered shortcut names, prompts, text, custom profile names and historical content are preserved.
 
@@ -134,8 +136,11 @@ Export/import includes shortcuts, profiles, saved shapes and preferences. Match 
 
 ```powershell
 .\setup-runtime.ps1
-.\test.ps1 -OutputDirectory dist\makroplus-2.6.2
-.\verify-models.ps1 -OutputDirectory dist\makroplus-2.6.2
+.\test.ps1 -OutputDirectory dist\makroplus-2.6.3
+# Headless, no desktop input (also runs in GitHub Actions):
+Start-Process -FilePath .\dist\makroplus-2.6.3\MakroPlus.exe -ArgumentList '--persistence-test' -WindowStyle Hidden -Wait
+Get-Content .\dist\makroplus-2.6.3\persistence-test-results.json
+.\verify-models.ps1 -OutputDirectory dist\makroplus-2.6.3
 .\verify-compatibility.ps1 -ModelPaths @('C:\models\first.gguf','C:\models\second.gguf')
 .\publish.ps1 -Archive -SkipBuild
 ```
@@ -169,4 +174,4 @@ Creating direct or prompt assignments does not require the destination/scope app
 
 Copyright (C) 2026 Makro+ contributors. This project is licensed under **GPL-3.0-only**; see [LICENSE](LICENSE). Independent runtime components and models keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions and issue reports are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [CHANGELOG.md](CHANGELOG.md).
 
-The Windows build workflow compiles source and checks publication contents. Native input/desktop tests are run on an interactive Windows desktop; CI compilation alone is not a hardware or model-compatibility guarantee.
+The Windows build workflow compiles source, checks publication contents and runs headless storage-ordering/metadata tests. Native input/desktop tests are run on an interactive Windows desktop; CI compilation alone is not a hardware or model-compatibility guarantee.

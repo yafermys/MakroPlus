@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.3
+
+- Integrate input-responsiveness PR #1 by misutesu-desu, preserving its authorship.
+- Move coalesced history disk writes off the UI thread while keeping mutable-state capture on the owning thread.
+- Reject stale and duplicate snapshots per destination so delayed history cannot roll back newer settings.
+- Preserve dirty history after capture/write failures; ignore obsolete task failures after a newer successful save.
+- Observe worker failures independently of the UI dispatcher and remove input hooks before a final synchronous close save.
+- Filter unsupported mouse messages before marshaling, skip foreground process queries for unmatched keyboard/pointer input, and cache own-path/extended-key data.
+- Add reproducible concurrency, failure, retry, shutdown and hook-routing checks; run the headless subset in Windows CI.
+
 ## 2.6.2
 
 - Prepare the first public source release under GPL-3.0-only.

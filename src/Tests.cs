@@ -33,7 +33,7 @@ namespace AkilliKisayol {
     Check(Rules.NormalizeSpotify("spotify:track:ABC123")=="spotify:track:ABC123","Spotify URI");
     PromptTests.Parser(Check);
     LlmTests.Unit(Check);AppIntegrationTests.Unit(Check);
-    BrowserTests.Unit(Check);SystemShortcutTests.Unit(Check);FeatureTests.Unit(Check);ActivationTests.Unit(Check);ProductTests.Unit(Check);TouchpadTests.Unit(Check);ModernTests.Unit(Check);ModelCompatibilityTests.Unit(Check);ModelFolderTests.Unit(Check);ThemeTests.Unit(Check);WindowFrameTests.Unit(Check);CustomThemeTests.Unit(Check);GesturePromptTests.Unit(Check);
+    BrowserTests.Unit(Check);SystemShortcutTests.Unit(Check);FeatureTests.Unit(Check);ActivationTests.Unit(Check);ProductTests.Unit(Check);TouchpadTests.Unit(Check);ModernTests.Unit(Check);ModelCompatibilityTests.Unit(Check);ModelFolderTests.Unit(Check);ResponsivenessTests.Unit(Check);ThemeTests.Unit(Check);WindowFrameTests.Unit(Check);CustomThemeTests.Unit(Check);GesturePromptTests.Unit(Check);
     bool invalid=false;try{Rules.NormalizeSpotify("https://evil.test/track/id");}catch(ArgumentException){invalid=true;}Check(invalid,"Spotify alan adı doğrulama");
     string folder=Path.Combine(Path.GetTempPath(),"AkilliKisayolTest-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(folder);string file=Path.Combine(folder,"state.json");
     var state=new State{Dark=false};state.Bindings.Add(global);Storage.Write(state,file);var restored=Storage.Read(file);
@@ -78,7 +78,7 @@ namespace AkilliKisayol {
      LlmTests.Ui(window,keyboard,previewState.ApplicationPaths,Check);
      BrowserTests.Ui(window,keyboard,Check,Screenshot);AppIntegrationTests.Ui(window,keyboard,Check,Screenshot);SystemShortcutTests.Ui(window,keyboard,Check,Screenshot);FeatureTests.Ui(window,keyboard,Check,Screenshot,message=>skips.Add(message));ActivationTests.Ui(window,keyboard,Check,Screenshot);ProductTests.Ui(window,keyboard,Check,Screenshot,message=>skips.Add(message));TouchpadTests.Ui(window,keyboard,Check,Screenshot);
     }
-    GesturePromptTests.Ui(window,Check,Screenshot);ModernTests.Ui(window,Check,Screenshot);ModelFolderTests.Ui(window,Check,Screenshot);ModelCompatibilityTests.Ui(Check);ThemeTests.Ui(window,Check,Screenshot);window.ShowApplicationsForTest();Screenshot(window,"applications-preview.png");window.SmokeViews();Theme.Apply(false);Screenshot(window,"light-preview.png");Theme.Apply(true);Check(true,"Açık/koyu tema geçişi");Screenshot(window,"preview.png");
+    GesturePromptTests.Ui(window,Check,Screenshot);ModernTests.Ui(window,Check,Screenshot);ModelFolderTests.Ui(window,Check,Screenshot);ModelCompatibilityTests.Ui(Check);ResponsivenessTests.Ui(window,Check);ThemeTests.Ui(window,Check,Screenshot);window.ShowApplicationsForTest();Screenshot(window,"applications-preview.png");window.SmokeViews();Theme.Apply(false);Screenshot(window,"light-preview.png");Theme.Apply(true);Check(true,"Açık/koyu tema geçişi");Screenshot(window,"preview.png");
     PromptTests.NativeWorkflow(window,Check,message=>skips.Add(message));
     window.Close();if(Directory.Exists(Path.GetDirectoryName(uiSettings))){foreach(string saved in Directory.GetFiles(Path.GetDirectoryName(uiSettings)))File.Delete(saved);Directory.Delete(Path.GetDirectoryName(uiSettings));}
     File.WriteAllText(report,"PASS: "+count+" checks\n"+DateTimeOffset.Now+(skips.Count>0?"\nSKIP: "+string.Join("\nSKIP: ",skips):""));return 0;

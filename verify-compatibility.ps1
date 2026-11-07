@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string[]]$ModelPaths, [string]$OutputDirectory='dist\makroplus-2.6.2')
+param([Parameter(Mandatory=$true)][string[]]$ModelPaths, [string]$OutputDirectory='dist\makroplus-2.6.3')
 $ErrorActionPreference='Stop'
 $folder=Join-Path $PSScriptRoot $OutputDirectory
 $exe=Join-Path $folder 'MakroPlus.exe'

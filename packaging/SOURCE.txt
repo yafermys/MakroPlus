@@ -1,6 +1,6 @@
 MAKRO+ SOURCE CODE — GPL-3.0-only
 
-The source for this version is supplied as MakroPlus-2.6.2-source.zip in the
+The source for this version is supplied as MakroPlus-2.6.3-source.zip in the
 same release. The matching repository tag also provides GitHub source archives.
 The Windows application, source code and original project assets use the
 GNU General Public License version 3 only; see LICENSE for the complete text.

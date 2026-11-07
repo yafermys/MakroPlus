@@ -8,7 +8,7 @@ using System.Windows.Media.Imaging;
 
 namespace AkilliKisayol {
  public static class Brand {
-  public const string Name="Makro+",Version="2.6.2";
+  public const string Name="Makro+",Version="2.6.3";
   static BitmapSource cover;
   public static BitmapSource Cover {get{if(cover==null){using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("MakroPlus.Cover.png")){var bitmap=new BitmapImage();bitmap.BeginInit();bitmap.CacheOption=BitmapCacheOption.OnLoad;bitmap.StreamSource=stream;bitmap.EndInit();bitmap.Freeze();cover=bitmap;}}return cover;}}
   public static Image Picture(double height){return new Image{Source=Cover,Height=height,Stretch=Stretch.Uniform,Margin=new Thickness(4),IsHitTestVisible=false};}
