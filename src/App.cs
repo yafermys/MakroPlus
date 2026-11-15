@@ -28,6 +28,9 @@ namespace AkilliKisayol {
    if(args.Contains("--features-model-test"))return FeatureTests.Real();
    if(args.Contains("--model-folder-test"))return ModelFolderTests.Real();
    if(args.Contains("--interface-preview"))return InterfacePreview.Run();
+   if(args.Contains("--app-shortcut-test"))return ApplicationShortcutTests.Run();
+   if(args.Contains("--app-shortcut-preview"))return ApplicationShortcutTests.Run(true);
+   if(args.Contains("--app-shortcut-live"))return ApplicationShortcutTests.Run(false,true);
    if(args.Contains("--system-test"))return InterfacePreview.Headless();
    if(args.Contains("--update-scan-test"))return InterfacePreview.UpdateScan();
    if(args.Contains("--system-model-test"))return InterfacePreview.Real(args.Length>1?args[1]:Storage.Read(Storage.FilePath).ModelPath);
@@ -115,7 +118,7 @@ namespace AkilliKisayol {
    tray=new Forms.NotifyIcon{Text="Makro+",Icon=Brand.TrayIcon(),Visible=true};
    var menu=new Forms.ContextMenuStrip();menu.Items.Add("Show",null,(s,e)=>Restore());menu.Items.Add("Pause / resume",null,(s,e)=>pause.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));var profileMenu=new Forms.ToolStripMenuItem("Profile");profileMenu.DropDownOpening+=(s,e)=>{profileMenu.DropDownItems.Clear();foreach(var item in state.Profiles){string id=item.Id;var choice=new Forms.ToolStripMenuItem(item.Name){Checked=id==state.ActiveProfileId};choice.Click+=(a,b)=>SwitchProfile(id);profileMenu.DropDownItems.Add(choice);}};menu.Items.Add(profileMenu);menu.Items.Add("Toggle touchpad shapes",null,(s,e)=>{SetGestureEnabled(!state.Gestures.Enabled);Render();});menu.Items.Add("Exit",null,(s,e)=>Close());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Restore();
    Closed+=(s,e)=>{closed=true;historySave.Stop();Actions.CancelWorkflow();engine.Dispose();gestures.Dispose();guide.Dispose();if(historyDirty||historyWrite!=null&&historyWrite.Status!=TaskStatus.RanToCompletion)Save();LocalLlm.Shared.Dispose();tray.Dispose();};UpdatePause();Render();
-   Loaded+=(s,e)=>{if(!Environment.GetCommandLineArgs().Contains("--self-test")&&!Environment.GetCommandLineArgs().Contains("--interface-preview"))ScanLinks();};
+   Loaded+=(s,e)=>{if(!Environment.GetCommandLineArgs().Contains("--self-test")&&!Environment.GetCommandLineArgs().Contains("--interface-preview")&&!Environment.GetCommandLineArgs().Contains("--app-shortcut-preview"))ScanLinks();};
    foreach(var b in state.Bindings.Where(b=>b.Enabled)) {string error=Rules.Validate(b,state.Bindings);if(error!=null){b.Enabled=false;Log(b.Name,"Safe install: disabled • "+error);}}
    Refresh();
   }
@@ -150,6 +153,7 @@ namespace AkilliKisayol {
    var header=Header(view,PageNote());DockPanel.SetDock(header,Dock.Top);dock.Children.Add(header);
    if(view=="Home"){dock.Children.Add(ModernWelcome());return;}
    if(view=="Recommended shortcuts"||view=="System actions"){dock.Children.Add(Recommendations(view=="System actions"));return;}
+   if(view=="Application shortcuts"){dock.Children.Add(ApplicationShortcutsPanel());return;}
    if(view=="AI model"){dock.Children.Add(ModelPanel());return;}
    if(view=="Transfer and diagnostics"){dock.Children.Add(DevicePanel());return;}
    if(view=="Touchpad gestures"){dock.Children.Add(GesturePanel());return;}
@@ -253,6 +257,7 @@ namespace AkilliKisayol {
      var remove=new MenuItem{Header="Remove from clipboard"};remove.Click+=(s,e)=>RemoveApplication(selected);menu.Items.Add(remove);more.Click+=(s,e)=>{menu.PlacementTarget=more;menu.IsOpen=true;};group.Children.Add(more);apps.Children.Add(group);
     }else{
      var card=new StackPanel{Width=285};card.Children.Add(Theme.Text(AppLibrary.Name(path),18));var label=Theme.Text(path,11,"Muted");label.Margin=new Thickness(0,6,0,8);label.ToolTip=path;card.Children.Add(label);card.Children.Add(Theme.Text(number+" shortcuts"+(File.Exists(path)?"":" • file not found"),12,"Muted"));
+     var assigned=Theme.Button("Show assigned shortcuts",()=>ShowApplicationShortcuts(selected));assigned.Margin=new Thickness(0,10,0,5);card.Children.Add(assigned);
      var promptButton=Theme.Button("Write the assignment I want",()=>OpenPrompt(selected),true);promptButton.Margin=new Thickness(0,12,0,7);card.Children.Add(promptButton);
      var scopeButton=Theme.Button("Shortcut for the application",()=>NewApplicationShortcut(selected,false));scopeButton.Margin=new Thickness(0,12,0,7);card.Children.Add(scopeButton);
      var launchButton=Theme.Button("Shortcut",()=>NewApplicationShortcut(selected,true));launchButton.Margin=new Thickness(0,0,0,7);card.Children.Add(launchButton);

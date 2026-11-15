@@ -1,4 +1,4 @@
-MAKRO+ 2.7.0 — WINDOWS 10/11 x64
+MAKRO+ 2.8.0 — WINDOWS 10/11 x64
 
 GET STARTED
 1. Extract the entire ZIP. Do not run the executable inside the ZIP.
@@ -20,6 +20,14 @@ Closing apps respects save prompts; services, the shell and Makro+ stay open.
 Check Windows updates starts a background scan only; it installs nothing.
 View progress/results on the system/recommendations page or in History.
 Use the offline guide's Language, recommendations and Windows actions section.
+
+APPLICATION SHORTCUTS
+Open Application shortcuts, choose Scan applications and search for an app.
+Use action/key and source filters to inspect in-app keys, Makro+ assignments
+and clearly labeled defaults. Include global or disabled entries if needed.
+New provider files are read-only; edit them in their own app and rescan.
+Coverage varies by application. Missing results do not prove there are no keys.
+Read APPLICATION_SHORTCUTS.md for the complete supported-source list.
 
 FULL USER GUIDE
 Open USER_GUIDE.html, or Settings > Open user guide inside Makro+.

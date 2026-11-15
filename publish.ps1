@@ -1,4 +1,4 @@
-param([string]$OutputDirectory = 'release\MakroPlus-2.7.0-win-x64', [switch]$Archive, [switch]$SkipBuild, [string]$BuildDirectory = 'dist\makroplus-2.7.0')
+param([string]$OutputDirectory = 'release\MakroPlus-2.8.0-win-x64', [switch]$Archive, [switch]$SkipBuild, [string]$BuildDirectory = 'dist\makroplus-2.8.0')
 $ErrorActionPreference = 'Stop'
 $base = $PSScriptRoot
 $build = Join-Path $base $BuildDirectory
@@ -21,12 +21,13 @@ if (Get-ChildItem -LiteralPath $destination -Recurse -File | Where-Object { $_.E
 $report = Get-Content -LiteralPath (Join-Path $build 'test-results.txt') -Raw
 if (-not $report.StartsWith('PASS:')) { throw 'Successful test report required.' }
 Set-Content -LiteralPath (Join-Path $destination 'TEST-RESULTS.txt') -Value $report -Encoding UTF8
-foreach($name in @('system-test-results.txt','interface-test-results.txt')){
+foreach($name in @('system-test-results.txt','interface-test-results.txt','application-scan-tests.txt')){
     $source=Join-Path $build $name
     $checks=Get-Content -LiteralPath $source -Raw -Encoding UTF8
     if(-not $checks.StartsWith('PASS')){throw "Successful system/interface checks required: $name"}
     Add-Content -LiteralPath (Join-Path $destination 'TEST-RESULTS.txt') -Value ($name+' : '+($checks -split '\r?\n')[0]) -Encoding UTF8
 }
+Copy-Item -LiteralPath (Join-Path $base 'docs\APPLICATION_SHORTCUTS.md') -Destination (Join-Path $destination 'APPLICATION_SHORTCUTS.md')
 foreach ($name in @('device-model-test.json','activation-model-test.json','features-model-test.json','app-model-test.json','llm-test-results.json','custom-model-test.json','gesture-model-test.json','model-folder-test.json','system-model-results.json')) {
     $source = Join-Path $build $name
     if (Test-Path -LiteralPath $source) {
@@ -59,7 +60,7 @@ $compatibility = @(Get-ChildItem -LiteralPath $build -Filter 'compat-*.json' -Fi
 })
 if($compatibility.Count -gt 0){ConvertTo-Json -InputObject $compatibility -Depth 6 | Set-Content -LiteralPath (Join-Path $destination 'model-compatibility-summary.json') -Encoding UTF8}
 $files = Get-ChildItem -LiteralPath $destination -Recurse -File | ForEach-Object { [pscustomobject]@{path=$_.FullName.Substring($destination.Length+1).Replace('\','/');bytes=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()} }
-@{name='Makro+';version='2.7.0';platform='Windows 10/11 x64';modelIncluded=$false;files=@($files)} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'package-manifest.json') -Encoding UTF8
+@{name='Makro+';version='2.8.0';platform='Windows 10/11 x64';modelIncluded=$false;files=@($files)} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $destination 'package-manifest.json') -Encoding UTF8
 if ($Archive) {
     Add-Type -AssemblyName System.IO.Compression
     $zipPath = $destination + '.zip'

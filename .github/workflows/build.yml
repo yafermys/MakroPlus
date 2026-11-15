@@ -35,6 +35,9 @@ jobs:
           $report=Get-Content -LiteralPath .\dist\ci\system-test-results.txt -Raw -Encoding UTF8
           if($process.ExitCode -ne 0 -or -not $report.StartsWith('PASS')){throw $report}
           Write-Host $report
+      - name: Test application shortcut readers without sending desktop input
+        shell: powershell
+        run: .\scripts\verify-application-shortcuts.ps1 -OutputDirectory dist\ci -SkipBuild
       - name: Retain build output
         # Desktop screenshots and real Windows operations are tested locally.
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

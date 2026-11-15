@@ -3,6 +3,14 @@ $root=Split-Path $PSScriptRoot -Parent
 $tracked=@(& git -C $root -c core.quotepath=false ls-files)
 if($LASTEXITCODE -ne 0 -or $tracked.Count -eq 0){throw 'Stage or commit the intended source files first.'}
 foreach($required in @('LICENSE','.gitignore','README.md','THIRD_PARTY_NOTICES.md','build.ps1','setup-runtime.ps1','packaging/USER_GUIDE.html','packaging/models/README.txt')){if($required -notin $tracked){throw "Missing publication input: $required"}}
+$brand=[IO.File]::ReadAllText((Join-Path $root 'src\Brand.cs'))
+$versionMatch=[regex]::Match($brand,'Version="(\d+\.\d+\.\d+)"')
+if(-not $versionMatch.Success){throw 'Cannot read release version from Brand.cs.'}
+$version=$versionMatch.Groups[1].Value
+$readme=[IO.File]::ReadAllText((Join-Path $root 'README.md'))
+foreach($link in @("releases/download/v$version/MakroPlus-$version-win-x64.zip","releases/download/v$version/MakroPlus-$version-source.zip","releases/tag/v$version")){if(-not $readme.Contains($link)){throw "Update README release links before publishing: $link"}}
+if(-not ([IO.File]::ReadAllText((Join-Path $root 'CHANGELOG.md')).Contains('## '+$version))){throw 'Update CHANGELOG before publishing.'}
+if(('docs/releases/'+$version+'.md') -notin $tracked){throw 'Stage matching English release notes before publishing.'}
 $issues=New-Object 'System.Collections.Generic.List[string]'
 $bytes=0L
 foreach($name in $tracked){

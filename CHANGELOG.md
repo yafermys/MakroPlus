@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.8.0 - 2026-11-15
+
+- Add an Application shortcuts page with app-name search, action/key filters, source filters and optional global/disabled entries.
+- Combine detected in-app assignments, native menu shortcuts and personal Makro+ launch/scoped actions without registering external keys again.
+- Read Brave's saved native accelerators and extension commands, including custom changes and explicit removals.
+- Discover supported editor, utility and game settings, including Antigravity, Notepad++, Sublime Text, JetBrains, VLC, OBS, PowerToys, Minecraft, League of Legends and Counter-Strike 2.
+- Keep unsupported applications visible with honest coverage information; label Spotify/Discord defaults as references.
+- Preserve source bytes with read-only new providers and block them from existing source-write/restore paths.
+- Bound file sizes, traversal and record counts; report damaged sources without losing other results.
+- Optimize app indexing and draft conflict checks; cap dense conflict reports with an explicit notice.
+- Add parser, safety, native-menu and search/filter checks to the Windows workflow.
+- Update the landing page, screenshots, offline guide and provider documentation; record the standing release-documentation rule in AGENTS.md.
+
 ## 2.7.0 — 2026-11-15
 
 - Simplify Home and sidebar navigation, and group advanced shortcut options in the editor.

@@ -26,7 +26,46 @@ namespace AkilliKisayol {
   static readonly ConditionalWeakTable<DependencyObject,Dictionary<DependencyProperty,Origin>> origins=new ConditionalWeakTable<DependencyObject,Dictionary<DependencyProperty,Origin>>();
   static readonly DependencyProperty TemplateLanguage=DependencyProperty.RegisterAttached("TemplateLanguage",typeof(string),typeof(Ui),new PropertyMetadata(null));
   static Ui(){
-   Add(@"Shortcut name|Kısayol adı
+   Add(@"Assign to new key|Yeni tuşa ata
+Scan notices|Tarama bildirimleri
+Scanning…|Taranıyor…
+Scanning shortcut sources...|Kısayol kaynakları taranıyor...
+{0} sources • {1} entries • {2} assignments • {3}|{0} kaynak • {1} kayıt • {2} tuş ataması • {3}
+Saved Brave shortcuts and extension commands scanned|Brave kısayolları ve eklenti komutları tarandı
+Customized Brave shortcut|Özelleştirilmiş Brave kısayolu
+Disabled Brave shortcut|Devre dışı Brave kısayolu
+Show disabled / unassigned|Devre dışı / atanmamışları göster
+Application shortcuts|Uygulama kısayolları
+Find an app and see its detected shortcuts and Makro+ assignments.|Bir uygulama arayın; algılanan kısayollarını ve Makro+ atamalarını görün.
+Scan applications|Uygulamaları tara
+Read app settings, open-window menus and Makro+ assignments in one place. Missing entries do not mean an app has no shortcuts.|Uygulama ayarları, açık pencere menüleri ve Makro+ atamaları tek yerde. Listede görünmemesi, uygulamanın kısayolu olmadığı anlamına gelmez.
+Search applications|Uygulama ara
+Choose an application|Bir uygulama seçin
+Search actions or keys|İşlem veya tuş ara
+All sources|Tüm kaynaklar
+From apps|Uygulamalardan
+Makro+ assignments|Makro+ atamaları
+Include global shortcuts|Genel kısayolları dahil et
+Coverage is partial. Defaults and conditions may differ inside the app.|Tarama kapsamı sınırlıdır. Varsayılanlar ve koşullar uygulama içinde farklı olabilir.
+Some sources could not be read|Bazı kaynaklar okunamadı
+Supported settings files scanned|Desteklenen ayar dosyaları tarandı
+User keybindings scanned|Kullanıcı tuş atamaları tarandı
+Open-window menu shortcuts read|Açık pencerenin menü kısayolları okundu
+No readable app settings source found|Okunabilir uygulama ayarı kaynağı bulunamadı
+Saved extension commands only; browser defaults are not scanned|Yalnızca kayıtlı eklenti komutları; tarayıcı varsayılanları taranmaz
+{0} entries|{0} kayıt
+Editable source|Düzenlenebilir kaynak
+Read-only source|Salt okunur kaynak
+Known default|Bilinen varsayılan
+Reference only|Yalnızca referans
+Details / edit|Ayrıntılar / düzenle
+Shortcut details|Kısayol ayrıntıları
+Edit this shortcut in the original application, save there, then rescan in Makro+.|Bu kısayolu kendi uygulamasında düzenleyip kaydedin, sonra Makro+ ile yeniden tarayın.
+Show assigned shortcuts|Atanmış kısayolları göster
+Select a shortcut settings folder|Kısayol ayarları klasörünü seçin
+Close|Kapat
+Details|Ayrıntılar
+Shortcut name|Kısayol adı
 Action to run|Çalıştırılacak işlem
 Move one finger on your touchpad now; pause to finish. The recording starts after a short delay.|Touchpad’de tek parmağınızla hareket edin; bitirmek için duraklayın. Kayıt kısa bir beklemeden sonra başlar.
 Record a shape, then describe its action.|Önce şekli kaydedin, sonra işlemini anlatın.

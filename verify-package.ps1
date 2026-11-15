@@ -1,4 +1,4 @@
-param([string]$Directory='release\MakroPlus-2.7.0-win-x64')
+param([string]$Directory='release\MakroPlus-2.8.0-win-x64')
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.IO.Compression
 $folder=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot $Directory))

@@ -7,6 +7,7 @@ Use Windows 10/11 x64 with .NET Framework 4.8. Read the README and offline guide
 .\test.ps1 -OutputDirectory dist\contributor-check
 .\scripts\verify-interface.ps1 -OutputDirectory dist\contributor-check -SkipBuild
 .\scripts\verify-interface.ps1 -OutputDirectory dist\contributor-check -SkipBuild -DesktopPreview
+.\scripts\verify-application-shortcuts.ps1 -OutputDirectory dist\contributor-check -SkipBuild -DesktopPreview
 ```
 
 The self-check opens controlled native test windows and sends input to those
