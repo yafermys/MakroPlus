@@ -50,7 +50,7 @@ namespace AkilliKisayol {
     host.Show();host.Activate();field.Focus();Keyboard.Focus(field);Pump(200);var handle=new WindowInteropHelper(host).Handle;if(Native.GetForegroundWindow()!=handle){skip("Yerel giriş testi: Windows test penceresine ön plan izni vermedi. Başka pencereye giriş gönderilmedi.");return;}
     var workflow=new Binding{Kind="Workflow",Steps=new List<ActionStep>{new ActionStep{Kind="Text",Text="Türkçe ığüşöç"},new ActionStep{Kind="Wait",Delay=100},new ActionStep{Kind="Click button",Text="Test düğmesi"}}};
     var task=Actions.RunSteps(workflow,handle);DateTime deadline=DateTime.UtcNow.AddSeconds(8);while(!task.IsCompleted&&DateTime.UtcNow<deadline)Pump(50);check(task.IsCompleted,"Yerel işlem dizisi zamanında tamamlanır");task.GetAwaiter().GetResult();
-    check(field.Text=="Türkçe ığüşöç","Gerçek SendInput ile Unicode metin gönderimi");check(invoked==1,"Gerçek UI Automation ile adı verilen düğmeye basma");
+    check(field.Text=="Türkçe ığüşöç","Gerçek SendInput ile Unicode metin gönderimi • alınan: ["+field.Text+"] • odak: "+field.IsKeyboardFocusWithin);check(invoked==1,"Gerçek UI Automation ile adı verilen düğmeye basma");
     bool stopped=false;try{Actions.EnsureTarget(IntPtr.Zero);}catch(InvalidOperationException){stopped=true;}check(stopped,"Pencere değişimi adımları durdurur");
     var cancel=new System.Threading.CancellationTokenSource();cancel.Cancel();task=Actions.RunSteps(workflow,handle,cancel.Token);check(task.IsCanceled,"İptal edilen dizi hiçbir adım göndermez");cancel.Dispose();
    }finally{host.Close();}

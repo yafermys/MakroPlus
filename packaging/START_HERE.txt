@@ -1,4 +1,4 @@
-MAKRO+ 2.6.3 — WINDOWS 10/11 x64
+MAKRO+ 2.7.0 — WINDOWS 10/11 x64
 
 GET STARTED
 1. Extract the entire ZIP. Do not run the executable inside the ZIP.
@@ -8,6 +8,18 @@ GET STARTED
    uses the bundled, Microsoft-signed Visual C++ runtime when needed.
 4. Keep the runtime folder next to the executable. NO LANGUAGE MODEL
    WEIGHTS ARE INCLUDED. Basic shortcuts and saved plans need no model.
+
+LANGUAGE AND RECOMMENDATIONS
+Choose English or Türkçe in the sidebar. Your choice is saved.
+Open Recommended shortcuts for 16 ready-to-customize actions, or System
+actions for Windows tasks. Read the card, choose Add, select a keyboard/
+mouse input or touchpad shape, review conflicts, then save. No model or
+running app is needed. Scope, profile and behavior are in advanced options.
+Shutdown, restart and close-app requests ask for confirmation when triggered.
+Closing apps respects save prompts; services, the shell and Makro+ stay open.
+Check Windows updates starts a background scan only; it installs nothing.
+View progress/results on the system/recommendations page or in History.
+Use the offline guide's Language, recommendations and Windows actions section.
 
 FULL USER GUIDE
 Open USER_GUIDE.html, or Settings > Open user guide inside Makro+.
@@ -49,10 +61,10 @@ to minimize, maximize/restore or close it. Drag the empty top edge to move
 the window, or double-click it to maximize/restore. Maximizing keeps the
 taskbar work area available on the current monitor.
 Navigation categories are separated into framed OVERVIEW, INPUTS,
-WORKSPACE and TOOLS & SETTINGS groups. The active page has a colored rail
+WORKSPACE and More tools groups. The active page has a colored rail
 and a bold label.
-Home offers Describe a task, Record your actions and Assign directly.
-Inputs and Workspace contain everyday tools. Tools & settings
+Home offers Add shortcut, Create with Prompt and Record macro.
+Inputs and Workspace contain everyday tools. More tools
 contains profiles, preferences, guide, conflicts, history and transfer.
 Prompt editing starts with the request and preview; trigger, app and
 provider options are grouped under advanced options.
@@ -61,7 +73,7 @@ Keyboard shortcuts defaults to your personal keyboard-triggered entries;
 disabled assignments remain visible for editing.
 
 THEMES
-Open Tools & settings > Appearance, or Settings > Customize appearance.
+Open More tools > Appearance, or Settings > Customize appearance.
 Dark: Graphite (charcoal), Midnight (navy), Forest (evergreen).
 Light: Paper (neutral), Mist (blue-gray), Sand (beige).
 Coral and peach are secondary accents for actions, selections and badges.

@@ -8,6 +8,7 @@ namespace AkilliKisayol {
   [DataMember] public string Id {get;set;}
   [DataMember] public string Name {get;set;}
   [DataMember] public bool SuppressTypingKeys {get;set;}
+  public string DisplayName{get{return Id==""&&Name=="All profiles"||Id=="work"&&Name=="Work"||Id=="game"&&Name=="Game"||Id=="study"&&Name=="Study"?Ui.T(Name):Name;}}
   public ShortcutProfile Copy(){return (ShortcutProfile)MemberwiseClone();}
  }
  public static class Profiles {

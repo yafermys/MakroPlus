@@ -27,6 +27,10 @@ namespace AkilliKisayol {
    if(args.Contains("--activation-model-test"))return ActivationTests.Real();
    if(args.Contains("--features-model-test"))return FeatureTests.Real();
    if(args.Contains("--model-folder-test"))return ModelFolderTests.Real();
+   if(args.Contains("--interface-preview"))return InterfacePreview.Run();
+   if(args.Contains("--system-test"))return InterfacePreview.Headless();
+   if(args.Contains("--update-scan-test"))return InterfacePreview.UpdateScan();
+   if(args.Contains("--system-model-test"))return InterfacePreview.Real(args.Length>1?args[1]:Storage.Read(Storage.FilePath).ModelPath);
    if(args.Contains("--self-test")) return Tests.Run();
    if(args.Contains("--llm-test")) return LlmTests.Real(args.Length>1?args[1]:null);
    if(args.Contains("--brave-test"))return BrowserTests.Real();if(args.Contains("--app-model-test"))return AppIntegrationTests.Real();
@@ -41,6 +45,7 @@ namespace AkilliKisayol {
  }
  public static class Theme {
   public static void Install(Application app) {
+   Ui.Install();app.Resources["LocalizedLabel"]=new LocalizedLabel();
    app.Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Parse(@"<ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
    <Style TargetType='Window'><Setter Property='FontFamily' Value='Segoe UI'/><Setter Property='FontSize' Value='13'/><Setter Property='Background' Value='{DynamicResource Bg}'/><Setter Property='Foreground' Value='{DynamicResource Ink}'/></Style>
    <Style TargetType='TextBlock'/><Style TargetType='Expander'><Setter Property='Foreground' Value='{DynamicResource Ink}'/><Setter Property='Margin' Value='0,8,0,8'/></Style>
@@ -58,7 +63,7 @@ namespace AkilliKisayol {
    <Style TargetType='DataGridColumnHeader'><Setter Property='Background' Value='{DynamicResource Surface}'/><Setter Property='Foreground' Value='{DynamicResource Muted}'/><Setter Property='Padding' Value='12,8'/><Setter Property='BorderThickness' Value='0'/><Setter Property='FontWeight' Value='SemiBold'/></Style>
    <Style TargetType='DataGridCell'><Setter Property='Foreground' Value='{DynamicResource Ink}'/><Setter Property='BorderThickness' Value='0'/><Setter Property='Padding' Value='12,0'/><Setter Property='VerticalContentAlignment' Value='Center'/><Setter Property='Template'><Setter.Value><ControlTemplate TargetType='DataGridCell'><Border Background='{TemplateBinding Background}' Padding='{TemplateBinding Padding}'><ContentPresenter VerticalAlignment='Center'/></Border></ControlTemplate></Setter.Value></Setter></Style>
    <Style TargetType='DataGridRow'><Setter Property='Foreground' Value='{DynamicResource Ink}'/><Style.Triggers><Trigger Property='IsSelected' Value='True'><Setter Property='Background' Value='{DynamicResource Selection}'/><Setter Property='Foreground' Value='{DynamicResource Ink}'/></Trigger></Style.Triggers></Style>
-   </ResourceDictionary>"));
+   </ResourceDictionary>"));ModernStyles.Install(app);
   }
   public static void Apply(bool dark) {
    Apply(null,dark);
@@ -67,8 +72,8 @@ namespace AkilliKisayol {
    var r=Application.Current.Resources;
    var palette=ThemeCatalog.Resolve(id,dark,custom);foreach(var color in palette.Colors())r[color.Key]=palette.Brush(color.Value);
   }
-  public static TextBlock Text(string text,double size=13,string resource=null) {var t=new TextBlock{Text=text,FontSize=size,TextWrapping=TextWrapping.Wrap};if(resource!=null)t.SetResourceReference(TextBlock.ForegroundProperty,resource);return t;}
-  public static Button Button(string text,Action click,bool accent=false) {var b=new Button{Content=text,VerticalContentAlignment=VerticalAlignment.Center};if(accent){b.SetResourceReference(Control.BackgroundProperty,"Accent");b.SetResourceReference(Control.ForegroundProperty,"AccentInk");}b.Click+=(s,e)=>click();return b;}
+  public static TextBlock Text(string text,double size=13,string resource=null) {var t=new LocalizedTextBlock{FontSize=size,TextWrapping=TextWrapping.Wrap};Ui.Set(t,TextBlock.TextProperty,text);if(resource!=null)t.SetResourceReference(TextBlock.ForegroundProperty,resource);return t;}
+  public static Button Button(string text,Action click,bool accent=false) {var b=new Button{VerticalContentAlignment=VerticalAlignment.Center};Ui.Set(b,ContentControl.ContentProperty,text);if(accent){b.SetResourceReference(Control.BackgroundProperty,"Accent");b.SetResourceReference(Control.ForegroundProperty,"AccentInk");}b.Click+=(s,e)=>click();return b;}
   public static Border Card(UIElement child,string resource="Panel") {var b=new Border{Child=child,CornerRadius=new CornerRadius(12),Padding=new Thickness(20),Margin=new Thickness(0,0,14,0)};b.SetResourceReference(Border.BackgroundProperty,resource);return b;}
  }
  public class Row {
@@ -88,16 +93,16 @@ namespace AkilliKisayol {
   readonly List<SystemShortcut> detected=new List<SystemShortcut>();readonly List<string> scanWarnings=new List<string>();readonly Dictionary<string,string> probes=new Dictionary<string,string>();bool scanning,closed;string scanInfo="Computer shortcuts have not yet been scanned.";
   string view="Home";Button pause,editRow,toggleRow,deleteRow,restoreRow,sourceRow;
   public MainWindow(State data,string settingsPath=null) {
-   settingsFile=settingsPath??Storage.FilePath;state=data;ThemeCatalog.Normalize(state);if(state.ModelOptions==null)state.ModelOptions=new ModelOptions();Actions.StepIntervalMs=state.StepIntervalMs??15;Profiles.Normalize(state);Theme.Apply(state.ThemeId,state.Dark,state.CustomThemes);Style=(Style)Application.Current.FindResource(typeof(Window));Title="Makro+";Width=1320;Height=860;MinWidth=1000;MinHeight=650;WindowStartupLocation=WindowStartupLocation.CenterScreen;Brand.Fit(this);
+   settingsFile=settingsPath??Storage.FilePath;state=data;state.Language=Ui.Normalize(state.Language);Ui.Language=state.Language;ThemeCatalog.Normalize(state);if(state.ModelOptions==null)state.ModelOptions=new ModelOptions();Actions.StepIntervalMs=state.StepIntervalMs??15;Profiles.Normalize(state);Theme.Apply(state.ThemeId,state.Dark,state.CustomThemes);Style=(Style)Application.Current.FindResource(typeof(Window));Title="Makro+";Width=1320;Height=860;MinWidth=1000;MinHeight=650;WindowStartupLocation=WindowStartupLocation.CenterScreen;Brand.Fit(this);
    historySave.Interval=TimeSpan.FromMilliseconds(750);historySave.Tick+=(s,e)=>{historySave.Stop();if(historyDirty)SaveHistory();};
    engine=new KeyboardEngine{Bindings=()=>Profiles.Effective(state),Paused=state.Paused,AllowRemappedInput=state.AllowRemappedInput};
    engine.Fire=(b,w)=>Actions.Run(b,w,result=>Log(b.Name,result));engine.Fault=message=>Log("Input engine",message);
    InitializeFeatures();
-   var root=new Grid();root.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(264)});root.ColumnDefinitions.Add(new ColumnDefinition());Content=root;
+   var root=new Grid();root.ColumnDefinitions.Add(new ColumnDefinition{Width=new GridLength(244)});root.ColumnDefinitions.Add(new ColumnDefinition());Content=root;
    var side=new DockPanel{Margin=new Thickness(16,35,16,18)};
    var brand=new StackPanel{Orientation=Orientation.Horizontal,Margin=new Thickness(5,0,0,20)};brand.Children.Add(Brand.Picture(42));var brandWords=new StackPanel{Margin=new Thickness(9,0,0,0),VerticalAlignment=VerticalAlignment.Center};brandWords.Children.Add(Theme.Text("MAKRO+",23));brandWords.Children.Add(Theme.Text("Make it yours.",11,"Muted"));brand.Children.Add(brandWords);DockPanel.SetDock(brand,Dock.Top);side.Children.Add(brand);
-   var foot=new StackPanel();foot.Children.Add(ProfileSelector());pause=Theme.Button("",()=>{state.Paused=!state.Paused;engine.Paused=state.Paused;if(state.Paused)Actions.CancelWorkflow();Save();UpdatePause();Render();});foot.Children.Add(pause);foot.Children.Add(Theme.Text("MAKRO+ • v"+Brand.Version,10,"Muted"));DockPanel.SetDock(foot,Dock.Bottom);side.Children.Add(foot);
-   side.Children.Add(Navigation());var sidebar=new Border{Child=side,BorderThickness=new Thickness(0,0,1,0)};sidebar.SetResourceReference(Border.BackgroundProperty,"Panel");sidebar.SetResourceReference(Border.BorderBrushProperty,"Line");root.Children.Add(sidebar);
+   var foot=new StackPanel();foot.Children.Add(Theme.Text("Language",10,"Muted"));foot.Children.Add(LanguageChoice());foot.Children.Add(ProfileSelector());pause=Theme.Button("",()=>{state.Paused=!state.Paused;engine.Paused=state.Paused;if(state.Paused)Actions.CancelWorkflow();Save();UpdatePause();Render();});foot.Children.Add(pause);foot.Children.Add(Theme.Text("MAKRO+ • v"+Brand.Version,10,"Muted"));DockPanel.SetDock(foot,Dock.Bottom);side.Children.Add(foot);
+   navigationHost.Content=Navigation();side.Children.Add(navigationHost);var sidebar=new Border{Child=side,BorderThickness=new Thickness(0,0,1,0)};sidebar.SetResourceReference(Border.BackgroundProperty,"Panel");sidebar.SetResourceReference(Border.BorderBrushProperty,"Line");root.Children.Add(sidebar);
    Grid.SetColumn(content,1);content.Margin=new Thickness(26,35,26,20);root.Children.Add(content);InstallWindowFrame(root);
    source.ItemsSource=new[]{"Show all resources","My assignments","Known defaults","Detected on this computer","Computer + defaults"};source.SelectedIndex=0;
    source.SelectionChanged+=(s,e)=>Refresh();search.TextChanged+=(s,e)=>Refresh();
@@ -110,12 +115,12 @@ namespace AkilliKisayol {
    tray=new Forms.NotifyIcon{Text="Makro+",Icon=Brand.TrayIcon(),Visible=true};
    var menu=new Forms.ContextMenuStrip();menu.Items.Add("Show",null,(s,e)=>Restore());menu.Items.Add("Pause / resume",null,(s,e)=>pause.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));var profileMenu=new Forms.ToolStripMenuItem("Profile");profileMenu.DropDownOpening+=(s,e)=>{profileMenu.DropDownItems.Clear();foreach(var item in state.Profiles){string id=item.Id;var choice=new Forms.ToolStripMenuItem(item.Name){Checked=id==state.ActiveProfileId};choice.Click+=(a,b)=>SwitchProfile(id);profileMenu.DropDownItems.Add(choice);}};menu.Items.Add(profileMenu);menu.Items.Add("Toggle touchpad shapes",null,(s,e)=>{SetGestureEnabled(!state.Gestures.Enabled);Render();});menu.Items.Add("Exit",null,(s,e)=>Close());tray.ContextMenuStrip=menu;tray.DoubleClick+=(s,e)=>Restore();
    Closed+=(s,e)=>{closed=true;historySave.Stop();Actions.CancelWorkflow();engine.Dispose();gestures.Dispose();guide.Dispose();if(historyDirty||historyWrite!=null&&historyWrite.Status!=TaskStatus.RanToCompletion)Save();LocalLlm.Shared.Dispose();tray.Dispose();};UpdatePause();Render();
-   Loaded+=(s,e)=>{if(!Environment.GetCommandLineArgs().Contains("--self-test"))ScanLinks();};
+   Loaded+=(s,e)=>{if(!Environment.GetCommandLineArgs().Contains("--self-test")&&!Environment.GetCommandLineArgs().Contains("--interface-preview"))ScanLinks();};
    foreach(var b in state.Bindings.Where(b=>b.Enabled)) {string error=Rules.Validate(b,state.Bindings);if(error!=null){b.Enabled=false;Log(b.Name,"Safe install: disabled • "+error);}}
    Refresh();
   }
   void Restore(){Show();WindowState=WindowState.Normal;Activate();}
-  void UpdatePause(){pause.Content=state.Paused?"▶ Resume shortcuts":"Ⅱ Pause shortcuts";string text="Makro+ • "+Profiles.Name(state)+(state.Paused?" • paused":"");tray.Text=text.Length>63?text.Substring(0,63):text;}
+  void UpdatePause(){Ui.Set(pause,ContentControl.ContentProperty,state.Paused?"▶ Resume shortcuts":"Ⅱ Pause shortcuts");string text="Makro+ • "+Profiles.Name(state)+(state.Paused?" • paused":"");tray.Text=text.Length>63?text.Substring(0,63):text;}
   bool Save(){try{Storage.Write(state,settingsFile);historyDirty=false;historySave.Stop();historyWrite=null;return true;}catch(Exception e){if(closed)MessageBox.Show("Could not save settings: "+e.Message,"Disk error");else MessageBox.Show(this,"Could not save settings: "+e.Message,"Disk error");return false;}}
   // The fsync runs off the UI thread: the input hooks are serviced there, so a slow disk would stall typing system-wide.
   void SaveHistory(){
@@ -136,14 +141,15 @@ namespace AkilliKisayol {
   internal Task HistoryWriteForTest {get{return historyWrite;}}
   internal bool SaveSettingsForTest(){return Save();}
   void Log(string name,string result){state.History.Insert(0,new Activity{Time=DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss zzz"),Name=name,Result=result});if(state.History.Count>200)state.History.RemoveRange(200,state.History.Count-200);historyDirty=true;if(!historySave.IsEnabled)historySave.Start();status.Text=result;if(view=="History")Render();}
-  StackPanel Header(string title,string note){var p=new StackPanel{Margin=new Thickness(0,0,0,22)};heading.Text=title;subtitle.Text=note;p.Children.Add(heading);p.Children.Add(subtitle);return p;}
-  void Render(){if(gestures!=null)gestures.Refresh();
+  StackPanel Header(string title,string note){var p=new StackPanel{Margin=new Thickness(0,0,0,22)};Ui.Set(heading,TextBlock.TextProperty,title);Ui.Set(subtitle,TextBlock.TextProperty,note);p.Children.Add(heading);p.Children.Add(subtitle);return p;}
+  void Render(){Dispatcher.BeginInvoke(new Action(()=>{if(!closed)Ui.Apply(this);}));if(gestures!=null)gestures.Refresh();
    UpdateNavigation();
    content.Children.Clear();content.RowDefinitions.Clear();var dock=new DockPanel();content.Children.Add(dock);
    // Reusable controls must be detached before adding to their new parents.
    Detach(heading);Detach(subtitle);Detach(table);Detach(search);Detach(source);Detach(detail);Detach(count);Detach(status);
    var header=Header(view,PageNote());DockPanel.SetDock(header,Dock.Top);dock.Children.Add(header);
-   if(view=="Home"){dock.Children.Add(Welcome());return;}
+   if(view=="Home"){dock.Children.Add(ModernWelcome());return;}
+   if(view=="Recommended shortcuts"||view=="System actions"){dock.Children.Add(Recommendations(view=="System actions"));return;}
    if(view=="AI model"){dock.Children.Add(ModelPanel());return;}
    if(view=="Transfer and diagnostics"){dock.Children.Add(DevicePanel());return;}
    if(view=="Touchpad gestures"){dock.Children.Add(GesturePanel());return;}
@@ -174,7 +180,7 @@ namespace AkilliKisayol {
   Border Stat(string value,string label){var s=new StackPanel();s.Children.Add(Theme.Text(value,30));s.Children.Add(Theme.Text(label,10,"Muted"));return Theme.Card(s);}
   void Refresh(){
    if(table==null||(view!="All shortcuts"&&view!="Keyboard shortcuts"&&view!="Mouse shortcuts"&&view!="By application"&&view!="Computer shortcuts"))return;var rows=new List<Row>();
-   if(source.SelectedIndex==0||source.SelectedIndex==1)rows.AddRange(state.Bindings.Select(b=>new Row{Active=b.Enabled&&!state.Paused&&Profiles.Active(b,state.Profiles.First(p=>p.Id==state.ActiveProfileId))?"●":"○",Name=b.Name,Combo=b.Combo,Action=b.Kind+" • "+b.Summary,Scope=b.Scope,Source="Makro+ assignment",Status=Profiles.Describe(b,state.Profiles,state.ActiveProfileId,state.Paused),Binding=b}));
+   if(source.SelectedIndex==0||source.SelectedIndex==1)rows.AddRange(state.Bindings.Select(b=>new Row{Active=b.Enabled&&!state.Paused&&Profiles.Active(b,state.Profiles.First(p=>p.Id==state.ActiveProfileId))?"●":"○",Name=b.Name,Combo=b.Combo,Action=Ui.T(b.Kind)+" • "+b.Summary,Scope=Ui.T(b.Scope),Source=Ui.T("Makro+ assignment"),Status=Profiles.Describe(b,state.Profiles,state.ActiveProfileId,state.Paused),Binding=b}));
    if(source.SelectedIndex==0||source.SelectedIndex==2||source.SelectedIndex==4)rows.AddRange(ShortcutConflicts.References().Select(SystemRow));
    if(source.SelectedIndex==0||source.SelectedIndex==3||source.SelectedIndex==4)rows.AddRange(detected.Select(SystemRow));
    var conflicts=ShortcutConflicts.Find(Profiles.Effective(state),AllSystem());var matchesById=new Dictionary<string,int>();foreach(var conflict in conflicts){foreach(string id in new[]{conflict.FirstId,conflict.SecondId}.Where(id=>id!=null).Distinct()){int matches;matchesById.TryGetValue(id,out matches);matchesById[id]=matches+1;}}foreach(var row in rows){string id=row.Binding!=null?row.Binding.Id:row.SystemShortcut==null?"":row.SystemShortcut.Id;int matches;if(matchesById.TryGetValue(id,out matches)&&matches>0)row.Status+=" • "+matches+" match";}
@@ -182,7 +188,7 @@ namespace AkilliKisayol {
    if(view=="Keyboard shortcuts")rows=rows.Where(r=>InputSections.Keyboard(r.Binding,r.SystemShortcut)).ToList();
    string query=search.Text??"";rows=rows.Where(r=>string.Join(" ",new[]{r.Name,r.Combo,r.Action,r.Scope,r.Source}).IndexOf(query,StringComparison.CurrentCultureIgnoreCase)>=0).ToList();
    table.ItemsSource=view=="By application"?rows.OrderBy(x=>x.Scope).ThenBy(x=>x.Name).ToList():rows;
-   count.Text=rows.Count+" entry • "+scanInfo;UpdateRowActions();
+   count.Text=string.Format(Ui.T("{0} entries • {1}"),rows.Count,Ui.T(scanInfo));UpdateRowActions();
   }
   Row Selected(){return table.SelectedItem as Row;}
   void EditSelected(){var r=Selected();if(r==null)return;if(r.Binding!=null)Edit(r.Binding);else if(r.SystemShortcut!=null)EditSystem(r.SystemShortcut);}

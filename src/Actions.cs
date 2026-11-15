@@ -19,9 +19,10 @@ namespace AkilliKisayol {
   public static void CancelWorkflow(){if(workflowCancellation!=null)workflowCancellation.Cancel();}
   public static async void Run(Binding b,IntPtr window,Action<string> done) {
    try {
+    if(b.Kind=="System"){done(await SystemActions.Run(b.Target,Application.Current.MainWindow,done));return;}
     if(b.Kind=="Workflow") {
      if(workflowBusy){done("Another operation sequence is running; new trigger was skipped.");return;}
-     workflowBusy=true;workflowCancellation=new CancellationTokenSource();try{await RunSteps(b,window,workflowCancellation.Token);done("Operation sequence sent • "+b.Steps.Count+" step. The application's result was not verified.");}finally{workflowCancellation.Dispose();workflowCancellation=null;workflowBusy=false;}return;
+     workflowBusy=true;workflowCancellation=new CancellationTokenSource();try{await RunSteps(b,window,workflowCancellation.Token,done);done("Operation sequence sent • "+b.Steps.Count+" step. The application's result was not verified.");}finally{workflowCancellation.Dispose();workflowCancellation=null;workflowBusy=false;}return;
     }
     if(b.Kind=="Send key" || b.Kind=="Media") {
      if(b.Kind=="Send key" && Native.GetForegroundWindow()!=window) throw new InvalidOperationException("Foreground window changed; key was not sent to the wrong application.");
@@ -32,12 +33,13 @@ namespace AkilliKisayol {
     string result=await Task.Run(()=>Execute(b));done(result);
    } catch(OperationCanceledException) {done("Operation sequence cancelled; sent steps cannot be retrieved.");} catch(Exception e) {done("ERROR • "+e.Message);}
   }
-  internal static async Task RunSteps(Binding b,IntPtr window,CancellationToken cancellation=default(CancellationToken)){
+  internal static async Task RunSteps(Binding b,IntPtr window,CancellationToken cancellation=default(CancellationToken),Action<string> progress=null){
    for(int index=0;index<b.Steps.Count;index++){var step=b.Steps[index];
     cancellation.ThrowIfCancellationRequested();
     if(step.Kind=="Open application"||step.Kind=="Open content"){
      await Task.Run(()=>AppIntegration.Open(step.AppPath,step.Kind=="Open content"?step.Text:"",step.Kind=="Open application"?step.Text:""));continue;
     }
+    if(step.Kind=="System"){string result=await SystemActions.Run(step.Text,Application.Current.MainWindow,progress??(message=>{}));if(progress!=null)progress(result);if(result==Ui.T("Cancelled. No action was sent."))throw new OperationCanceledException();continue;}
     if(step.Kind=="Focus"){window=await Focus(step.AppPath,cancellation,step.WindowTitle,step.WindowClass);continue;}
     if(step.Kind=="PowerShell"||step.Kind=="Terminal (cmd)"){string result=await Task.Run(()=>Execute(new Binding{Kind=step.Kind,Target=step.Text},cancellation));if(!result.EndsWith(" 0"))throw new InvalidOperationException(result);continue;}
     if(step.Kind!="Wait"){EnsureTarget(window);if(!string.IsNullOrEmpty(step.AppPath)&&!Rules.SameApp(step.AppPath,Native.ProcessPath(window)))throw new InvalidOperationException("The target application for this step is not in the foreground. First, add a step to focus on the application.");}

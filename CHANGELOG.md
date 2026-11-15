@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.7.0 — 2026-11-15
+
+- Simplify Home and sidebar navigation, and group advanced shortcut options in the editor.
+- Add a persistent English/Türkçe interface selector while keeping stored action IDs and user-entered commands unchanged.
+- Add 16 ready-to-customize recommendations with keyboard, mouse and touchpad triggers and existing conflict validation.
+- Add native Windows actions for lock, desktop/task view, screenshots, clipboard history, symbols, Explorer, Task Manager, sound/network/storage settings and Windows Update.
+- Check for available software updates on a worker through Windows Update; no updates are downloaded or installed.
+- Confirm shutdown, restart and closure of visible user-session app windows at execution time. Respect save dialogs and permissions; preserve the shell, background services and Makro+.
+- Make native system actions available to prompt-generated plans and editable macro steps without requiring a registered or running app.
+- Preserve direct execution of saved plans and the input/history responsiveness improvements from 2.6.3.
+- Add headless system-action checks to Windows CI and a repeatable desktop preview test script.
+- Refresh the English README, screenshots and offline guide for simpler setup and discovery.
+
 ## 2.6.3
 
 - Integrate input-responsiveness PR #1 by misutesu-desu, preserving its authorship.

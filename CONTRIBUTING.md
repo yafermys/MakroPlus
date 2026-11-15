@@ -5,6 +5,8 @@ Use Windows 10/11 x64 with .NET Framework 4.8. Read the README and offline guide
 ```powershell
 .\setup-runtime.ps1
 .\test.ps1 -OutputDirectory dist\contributor-check
+.\scripts\verify-interface.ps1 -OutputDirectory dist\contributor-check -SkipBuild
+.\scripts\verify-interface.ps1 -OutputDirectory dist\contributor-check -SkipBuild -DesktopPreview
 ```
 
 The self-check opens controlled native test windows and sends input to those
@@ -12,6 +14,12 @@ fixtures. Run it on a desktop you can leave idle until it finishes. It does not
 replace user settings. Inspect `test-results.txt`; report any SKIP alongside
 PASS/FAIL results. Model tests are optional and require your own compatible
 GGUF and, for app-routing tests, the relevant registered applications.
+
+System-action dispatch tests use a fake host; desktop preview tests send WM_CLOSE
+only to their own controlled window. Do not test shutdown, restart, lock or closing
+all apps on a contributor's desktop. The optional `--system-model-test <model-path>`
+checks plans without executing them. `--update-scan-test` performs a real online
+Windows Update search, with no download or installation; it is not a CI step.
 
 Keep changes focused and describe the user-visible behavior, validation and
 limitations. Preserve the preview-before-save flow, input loop prevention,
