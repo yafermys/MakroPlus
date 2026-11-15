@@ -21,7 +21,7 @@ if (Get-ChildItem -LiteralPath $destination -Recurse -File | Where-Object { $_.E
 $report = Get-Content -LiteralPath (Join-Path $build 'test-results.txt') -Raw
 if (-not $report.StartsWith('PASS:')) { throw 'Successful test report required.' }
 Set-Content -LiteralPath (Join-Path $destination 'TEST-RESULTS.txt') -Value $report -Encoding UTF8
-foreach($name in @('system-test-results.txt','interface-test-results.txt','application-scan-tests.txt')){
+foreach($name in @('system-test-results.txt','interface-test-results.txt','application-scan-tests.txt','update-notifier-tests.txt')){
     $source=Join-Path $build $name
     $checks=Get-Content -LiteralPath $source -Raw -Encoding UTF8
     if(-not $checks.StartsWith('PASS')){throw "Successful system/interface checks required: $name"}

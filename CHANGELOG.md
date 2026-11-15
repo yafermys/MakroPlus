@@ -2,6 +2,9 @@
 
 ## 2.8.0 - 2026-11-15
 
+- Notify users about newer stable Makro+ releases with a tray notification and persistent in-app release banner.
+- Add English/Turkish update settings, manual checks, opt-out, six-hour success caching, offline backoff and one notice per version across restarts. Fetch only public release metadata; never download or install updates automatically.
+- Keep update HTTP and disk writes off the input path, cancel requests on exit, validate release links and bound response size/time. Add fake-network headless and desktop notification checks to CI and packaging.
 - Add an Application shortcuts page with app-name search, action/key filters, source filters and optional global/disabled entries.
 - Combine detected in-app assignments, native menu shortcuts and personal Makro+ launch/scoped actions without registering external keys again.
 - Read Brave's saved native accelerators and extension commands, including custom changes and explicit removals.

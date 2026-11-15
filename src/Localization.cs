@@ -26,7 +26,22 @@ namespace AkilliKisayol {
   static readonly ConditionalWeakTable<DependencyObject,Dictionary<DependencyProperty,Origin>> origins=new ConditionalWeakTable<DependencyObject,Dictionary<DependencyProperty,Origin>>();
   static readonly DependencyProperty TemplateLanguage=DependencyProperty.RegisterAttached("TemplateLanguage",typeof(string),typeof(Ui),new PropertyMetadata(null));
   static Ui(){
-   Add(@"Assign to new key|Yeni tuşa ata
+   Add(@"App updates|Uygulama güncellemeleri
+Notify me when a new Makro+ version is available|Yeni Makro+ sürümü çıktığında bildir
+Checks public GitHub releases after launch and about every six hours while running. No shortcuts or prompts are sent. Downloads and installation are your choice.|Açılıştan sonra ve açıkken yaklaşık altı saatte bir herkese açık GitHub sürümlerini denetler. Kısayol veya prompt gönderilmez. İndirme ve kurma tercihi sizindir.
+Check for updates now|Güncellemeleri şimdi denetle
+View release|Sürümü görüntüle
+Last checked: {0}|Son denetim: {0}
+Checking for a new Makro+ version…|Yeni Makro+ sürümü denetleniyor…
+You are using the latest published version.|Yayımlanan en güncel sürümü kullanıyorsunuz.
+Makro+ {0} is available.|Makro+ {0} sürümü çıktı.
+A new Makro+ version is available|Yeni bir Makro+ sürümü var
+Version {0} is ready. Click to view the release and download it.|{0} sürümü hazır. Sürümü incelemek ve indirmek için tıklayın.
+Please wait 30 seconds between update checks.|Denetimler arasında 30 saniye bekleyin.
+Update check cancelled.|Güncelleme denetimi iptal edildi.
+Could not check GitHub releases. Check your connection or try again later.|GitHub sürümleri denetlenemedi. Bağlantınızı kontrol edin veya daha sonra tekrar deneyin.
+The browser could not be opened. Visit the Makro+ GitHub releases page.|Tarayıcı açılamadı. Makro+ GitHub sürümleri sayfasını ziyaret edin.
+Assign to new key|Yeni tuşa ata
 Scan notices|Tarama bildirimleri
 Scanning…|Taranıyor…
 Scanning shortcut sources...|Kısayol kaynakları taranıyor...

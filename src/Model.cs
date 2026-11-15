@@ -71,6 +71,7 @@ namespace AkilliKisayol {
   [DataMember(EmitDefaultValue=false)] public bool? UseGpu;
   [DataMember(EmitDefaultValue=false)] public GestureOptions Gestures=new GestureOptions();
   [DataMember(EmitDefaultValue=false)] public bool AllowRemappedInput;
+  [DataMember(EmitDefaultValue=false)] public UpdatePreferences Updates=new UpdatePreferences();
  }
  public static class Storage {
   static readonly object writeGate=new object();
@@ -83,7 +84,7 @@ namespace AkilliKisayol {
     var state=(State)new DataContractJsonSerializer(typeof(State)).ReadObject(s);
     if(state==null || state.Bindings==null || state.History==null || state.Bindings.Any(b=>b==null || b.Id==null || b.AppPath==null || b.Target==null || b.Name==null || b.Kind==null)) throw new InvalidDataException("Invalid settings file.");
     if(state.Bindings.Count>5000||state.Bindings.Select(b=>b.Id).Distinct().Count()!=state.Bindings.Count||state.Bindings.Any(b=>string.IsNullOrWhiteSpace(b.Id)||b.Steps!=null&&b.Steps.Any(step=>step==null)))throw new InvalidDataException("Number of assignments, identities, or steps is invalid.");
-    LegacyData.Normalize(state);state.Language=Ui.Normalize(state.Language);
+    LegacyData.Normalize(state);state.Language=Ui.Normalize(state.Language);if(state.Updates==null)state.Updates=new UpdatePreferences();
     ThemeCatalog.Normalize(state);
     if(state.ApplicationPaths==null) {
      state.ApplicationPaths=new List<string>();

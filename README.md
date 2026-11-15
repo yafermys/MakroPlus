@@ -18,6 +18,8 @@ Windows 10/11 x64 · .NET Framework 4.8 · GPL-3.0-only · No bundled language m
 
 Applications can be closed while you create their shortcuts. Saved assignments run directly, without a model request. Read `START_HERE.txt` and the offline `USER_GUIDE.html` included in the ZIP for detailed setup and examples.
 
+**Stay up to date:** Makro+ checks for new stable releases in the background and shows a notification and an in-app banner. Use **Settings → App updates** to check now or turn automatic checks off. You choose when to download and install.
+
 ## What you can do
 
 | Task | How Makro+ helps |

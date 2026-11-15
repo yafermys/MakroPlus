@@ -179,3 +179,13 @@ Applications do not need to run when you create their shortcuts.
 Register their .exe files and choose them as scope or destination.
 Use Global scope to launch a closed app from anywhere. Screen/key
 actions need a target window when the saved shortcut actually runs.
+
+NEW MAKRO+ RELEASE NOTIFICATIONS
+Settings > App updates can check GitHub now or turn automatic checks off.
+Automatic checks start shortly after launch and about every six hours while
+running. Each newer stable version is announced once with a tray notification
+and an in-app banner. Windows notification settings can hide the tray alert;
+the banner and View release button remain available. Only public release
+metadata is requested; no prompts, shortcuts or API keys are sent to GitHub.
+Downloads and installation are always your choice. Close Makro+ before updating.
+This feature is available from 2.8.0; older installations need a manual upgrade.
