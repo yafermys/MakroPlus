@@ -73,7 +73,7 @@ fn schema() -> Value {
 
 const INSTRUCTIONS: &str = r#"You are the planner inside Makro+, a Windows automation app. Convert the user's request (English or Turkish) into ONE shortcut plan and return only the JSON object. You plan actions; never claim they ran.
 
-ACTIVATION: trigger_override wins, else trigger_hint, else a key the user explicitly named. Never invent a trigger and never repeat it as a step. If none was supplied, return status "clarify", a short question in message, steps []. "Del+5" means hold Del then press 5. Mouse buttons (LButton, RButton, MButton, XButton1, XButton2) and wheel (WheelUp/Down/Left/Right) are valid triggers.
+ACTIVATION: when trigger_type is "touchpad_shape" the user already recorded a touchpad shape as the trigger: never ask for a key, return trigger as an empty string and plan only the actions (keys mentioned in the request are actions, not the trigger). Otherwise trigger_override wins, else trigger_hint, else a key the user explicitly named. Never invent a trigger and never repeat it as a step. If none was supplied, return status "clarify", a short question in message, steps []. "Del+5" means hold Del then press 5. Mouse buttons (LButton, RButton, MButton, XButton1, XButton2) and wheel (WheelUp/Down/Left/Right) are valid triggers.
 
 APPS: use the supplied app ids only. selected_app_id is the activation scope. Root app_id "global" means the steps go to whatever window is in front when the shortcut runs. Each step may set app_id to act on a different registered app — this is how ONE shortcut works across SEVERAL apps. Registered apps do not need to be running: focus_app launches the app if needed and waits for its window. Before keys/text/clicks in another app, add focus_app for it.
 
@@ -118,6 +118,8 @@ pub struct PlanRequest {
     pub share_commands: bool,
     pub clipboard: Option<String>,
     pub rounds: u32,
+    /// Recorded touchpad shape used as the trigger instead of a key.
+    pub gesture: Option<crate::model::ShapeTemplate>,
 }
 
 #[derive(Default, Clone)]
@@ -227,6 +229,7 @@ fn build_messages(req: &PlanRequest, previous: Option<(&str, &str)>, include_sch
         "applications": app_list,
         "app_commands": commands,
         "operating_system": crate::platform::OS,
+        "trigger_type": if req.gesture.is_some() { "touchpad_shape" } else { "keyboard" },
     });
     if let Some(c) = &req.clipboard {
         data["current_clipboard"] = json!(crate::model::short(c, 2000));
@@ -420,12 +423,14 @@ pub fn read_plan(content: &str, req: &PlanRequest) -> Result<PlanResult, String>
     // Trigger: explicit field > hint in prompt > model's proposal.
     let hint = trigger_hint(&req.prompt);
     let model_trigger = s_of(&root, "trigger");
-    let chosen = if !req.trigger.trim().is_empty() { req.trigger.clone() } else if !hint.is_empty() { hint } else { model_trigger };
+    let chosen = if req.gesture.is_some() { String::new() } else if !req.trigger.trim().is_empty() { req.trigger.clone() } else if !hint.is_empty() { hint } else { model_trigger };
     let mut binding = Binding { name: s_of(&root, "name"), kind: "Workflow".into(), prompt: Some(req.prompt.clone()), ..Default::default() };
     if binding.name.trim().is_empty() {
         binding.name = t("AI shortcut", "AI kısayolu").into();
     }
-    if chosen.trim().is_empty() {
+    if let Some(g) = &req.gesture {
+        binding.gesture = Some(g.clone());
+    } else if chosen.trim().is_empty() {
         result.errors.push(t("Which trigger key should run this? Choose it in the Trigger field.", "Bunu hangi tuş çalıştırsın? Tetikleyici alanından seçin.").into());
     } else {
         match keys::parse_trigger(&chosen) {
@@ -992,7 +997,7 @@ mod tests {
     use super::*;
 
     fn req(prompt: &str, apps: Vec<String>) -> PlanRequest {
-        PlanRequest { prompt: prompt.into(), trigger: String::new(), scope_app: String::new(), target_app: String::new(), apps, inventories: vec![], share_commands: true, clipboard: None, rounds: 2 }
+        PlanRequest { prompt: prompt.into(), trigger: String::new(), scope_app: String::new(), target_app: String::new(), apps, inventories: vec![], share_commands: true, clipboard: None, rounds: 2, gesture: None }
     }
 
     #[test]
@@ -1021,6 +1026,24 @@ mod tests {
         assert_eq!(b.steps()[1].app(), notepad);
         assert_eq!(b.steps()[3].app(), notepad);
         assert_eq!((b.steps()[4].mods, b.steps()[4].key), (2, 83));
+    }
+
+    #[test]
+    fn touchpad_trigger_plan() {
+        let mut r = req("Bu şekli çizince seçili metni kopyala ve not dosyasına ekle", vec![]);
+        let pts: Vec<crate::model::GesturePoint> = (0..20).map(|i| crate::model::GesturePoint { x: i as f64 * 10.0, y: (i % 3) as f64 * 15.0 }).collect();
+        r.gesture = Some(crate::model::ShapeTemplate { points: pts });
+        // The model leaves the trigger empty; a mentioned key is an action, not the trigger.
+        let content = r#"{"status":"ready","name":"Not ekle","trigger":"","app_id":"global","message":"","notes":[],
+          "steps":[{"kind":"copy_selection"},{"kind":"write_file","path":"{documents}\\notes.txt","text":"{selection}","append":true},{"kind":"key","combo":"Ctrl+S"}]}"#;
+        let p = read_plan(content, &r).unwrap();
+        assert!(p.errors.is_empty(), "{:?}", p.errors);
+        let b = p.binding.unwrap();
+        assert!(b.gesture.is_some());
+        assert_eq!((b.mods, b.key), (0, 0));
+        assert_eq!(b.steps().len(), 3);
+        let data = build_messages(&r, None, false).last().unwrap()["content"].as_str().unwrap().to_string();
+        assert!(data.contains("\"trigger_type\":\"touchpad_shape\""));
     }
 
     #[test]

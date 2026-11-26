@@ -16,6 +16,10 @@ pub struct PromptState {
     pub result: Option<PlanResult>,
     pub error: String,
     pub started: Option<std::time::Instant>,
+    pub shape: bool,
+    pub trace: Vec<crate::model::GesturePoint>,
+    pub drawing: bool,
+    pub shape_status: String,
 }
 
 impl PromptState {
@@ -64,15 +68,31 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, st: &mut State) {
             ui.set_width(ui.available_width());
             ui.add(egui::TextEdit::multiline(&mut app.prompt.text).desired_rows(5).desired_width(f32::INFINITY).hint_text(t(EXAMPLES[0].0, EXAMPLES[0].1)));
             ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(t("Trigger type", "Tetikleyici türü"));
+                if ui.radio(!app.prompt.shape, t("Key / mouse button", "Tuş / fare düğmesi")).clicked() {
+                    app.prompt.shape = false;
+                    app.prompt.drawing = false;
+                    crate::gesture::set_mode(crate::gesture::MODE_LISTEN);
+                }
+                if ui.radio(app.prompt.shape, t("Touchpad shape", "Touchpad şekli")).clicked() {
+                    app.prompt.shape = true;
+                }
+            });
+            if app.prompt.shape {
+                let p = &mut app.prompt;
+                super::editor::shape_box(ui, &c, &mut p.trace, &mut p.drawing, &mut p.shape_status, &st.gestures.device);
+                ui.add_space(4.0);
+            }
             egui::Grid::new("prompt-opts").num_columns(4).spacing([12.0, 8.0]).show(ui, |ui| {
-                ui.label(t("Trigger", "Tetikleyici"));
-                ui.horizontal(|ui| {
+                ui.label(if app.prompt.shape { "" } else { t("Trigger", "Tetikleyici") });
+                ui.add_enabled_ui(!app.prompt.shape, |ui| ui.horizontal(|ui| {
                     ui.add(egui::TextEdit::singleline(&mut app.prompt.trigger).hint_text(t("from the text, or e.g. Ctrl+Alt+T", "metinden veya örn. Ctrl+Alt+T")).desired_width(200.0));
                     let rec = app.capture == Some(CaptureTarget::PromptTrigger);
                     if ui.button(if rec { t("Press keys…", "Tuşlara basın…") } else { "⌨" }).on_hover_text(t("Record keys", "Tuşları kaydet")).clicked() && !rec {
                         app.start_capture(CaptureTarget::PromptTrigger);
                     }
-                });
+                }));
                 ui.label(t("Works in", "Çalıştığı yer"));
                 app_combo(ui, "p-scope", &mut app.prompt.scope, &mut st.application_paths, true, t("All applications", "Tüm uygulamalar"), 230.0);
                 ui.end_row();
@@ -91,7 +111,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, st: &mut State) {
             });
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                let can = !app.prompt.busy && !app.prompt.text.trim().is_empty();
+                let shape_ok = !app.prompt.shape || app.prompt.trace.len() >= 8;
+                let can = !app.prompt.busy && !app.prompt.text.trim().is_empty() && shape_ok;
+                if app.prompt.shape && !shape_ok {
+                    ui.label(RichText::new(t("Draw the touchpad shape first.", "Önce touchpad şeklini çizin.")).color(c.warn));
+                }
                 if ui.add_enabled(can, egui::Button::new(RichText::new(t("Create plan", "Planı oluştur")).color(c.accent_ink).family(super::bold())).fill(c.accent).min_size(egui::vec2(0.0, 32.0))).clicked() {
                     start(app, st);
                 }
@@ -181,6 +205,7 @@ fn start(app: &mut App, st: &State) {
         share_commands: st.ai.share_app_commands,
         clipboard: if st.ai.share_clipboard { crate::clipboard::get_text() } else { None },
         rounds: st.ai.correction_rounds,
+        gesture: if app.prompt.shape && app.prompt.trace.len() >= 8 { Some(crate::model::ShapeTemplate { points: app.prompt.trace.clone() }) } else { None },
     };
     std::thread::spawn(move || {
         let r = crate::llm::plan(&req, &|p| crate::send_ui(crate::UiEvent::Progress(p)));

@@ -7,7 +7,7 @@ work across your apps: copy from one app and save into another, run menu command
 inside an app, transform text with AI, or keep a searchable clipboard. Use it in
 **English or Türkçe**, on **Windows and Linux**.
 
-**[Download Makro+ 3.0.0 for Windows x64](https://github.com/yafermys/MakroPlus/releases/download/v3.0.0/MakroPlus-3.0.0-win-x64.zip)** · [Linux packages](https://github.com/yafermys/MakroPlus/releases/tag/v3.0.0) · [Release notes](https://github.com/yafermys/MakroPlus/releases/tag/v3.0.0)
+**[Download Makro+ 3.0.1 for Windows x64](https://github.com/yafermys/MakroPlus/releases/download/v3.0.1/MakroPlus-3.0.1-win-x64.zip)** · [Linux packages](https://github.com/yafermys/MakroPlus/releases/tag/v3.0.1) · [Release notes](https://github.com/yafermys/MakroPlus/releases/tag/v3.0.1)
 
 Windows 10/11 x64 · Linux x86_64 (.deb, .rpm, AppImage, .tar.gz) · Native Rust app, no .NET · GPL-3.0-only
 
@@ -75,7 +75,7 @@ is Windows-only for now. Details: [release notes](docs/releases/3.0.0.md).
 - **Report a problem:** [open an issue](https://github.com/yafermys/MakroPlus/issues/new/choose)
   with your OS and app version. Keep API keys and private settings out of reports.
 - **Downloads** are unsigned; verify them with the matching `.sha256` file.
-- **Source:** [matching source ZIP](https://github.com/yafermys/MakroPlus/releases/download/v3.0.0/MakroPlus-3.0.0-source.zip),
+- **Source:** [matching source ZIP](https://github.com/yafermys/MakroPlus/releases/download/v3.0.1/MakroPlus-3.0.1-source.zip),
   [build and contribute](CONTRIBUTING.md), [changes](CHANGELOG.md),
   [security](SECURITY.md), [third-party licenses](THIRD_PARTY_NOTICES.md).
   Makro+ 3 lives in `rust/`; the 2.x C# app remains in `src/`.

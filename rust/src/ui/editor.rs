@@ -460,11 +460,11 @@ pub fn show(app: &mut App, ctx: &egui::Context, st: &mut State) {
 }
 
 /// Shape trigger: preview, record and touchpad calibration.
-fn shape_box(ui: &mut egui::Ui, c: &crate::theme::Colors, ed: &mut Editor, device: &str) {
+pub fn shape_box(ui: &mut egui::Ui, c: &crate::theme::Colors, trace: &mut Vec<crate::model::GesturePoint>, drawing: &mut bool, status: &mut String, device: &str) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(260.0, 160.0), egui::Sense::hover());
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 10.0, c.surface);
-    let pts = &ed.trace;
+    let pts = &*trace;
     if pts.len() > 1 {
         let (minx, maxx) = pts.iter().fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.x), a.1.max(p.x)));
         let (miny, maxy) = pts.iter().fold((f64::MAX, f64::MIN), |a, p| (a.0.min(p.y), a.1.max(p.y)));
@@ -479,29 +479,39 @@ fn shape_box(ui: &mut egui::Ui, c: &crate::theme::Colors, ed: &mut Editor, devic
         painter.text(rect.center(), egui::Align2::CENTER_CENTER, t("No shape yet", "Henüz şekil yok"), egui::FontId::proportional(13.0), c.muted);
     }
     ui.horizontal(|ui| {
-        if ed.drawing {
+        if *drawing {
             ui.label(RichText::new(t("Draw with one finger on the touchpad, then pause…", "Touchpad'de tek parmakla çizin, sonra bekleyin…")).color(c.accent));
             if ui.button(t("Stop", "Durdur")).clicked() {
-                ed.drawing = false;
+                *drawing = false;
                 crate::gesture::set_mode(crate::gesture::MODE_LISTEN);
             }
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
         } else if device.is_empty() && crate::gesture::MODE.load(std::sync::atomic::Ordering::Relaxed) != crate::gesture::MODE_CALIBRATE {
             if ui.button(t("Detect touchpad", "Touchpad'i tanıt")).on_hover_text(t("Move one finger on the touchpad after clicking.", "Tıkladıktan sonra touchpad'de tek parmağınızı gezdirin.")).clicked() {
                 crate::gesture::set_mode(crate::gesture::MODE_CALIBRATE);
-                ed.shape_status = t("Move one finger on your touchpad…", "Touchpad'de tek parmağınızı gezdirin…").into();
+                *status = t("Move one finger on your touchpad…", "Touchpad'de tek parmağınızı gezdirin…").into();
             }
         } else if crate::gesture::MODE.load(std::sync::atomic::Ordering::Relaxed) == crate::gesture::MODE_CALIBRATE {
             ui.label(RichText::new(t("Move one finger on your touchpad…", "Touchpad'de tek parmağınızı gezdirin…")).color(c.accent));
+            if ui.button(t("Cancel", "İptal")).clicked() {
+                crate::gesture::set_mode(crate::gesture::MODE_LISTEN);
+                status.clear();
+            }
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
-        } else if ui.button(if ed.trace.is_empty() { t("Draw shape", "Şekli çiz") } else { t("Draw again", "Yeniden çiz") }).clicked() {
-            ed.drawing = true;
-            ed.trace.clear();
-            crate::gesture::begin_record();
+        } else {
+            if ui.button(if trace.is_empty() { t("Draw shape", "Şekli çiz") } else { t("Draw again", "Yeniden çiz") }).clicked() {
+                *drawing = true;
+                trace.clear();
+                status.clear();
+                crate::gesture::begin_record();
+            }
+            if ui.small_button(t("Detect touchpad again", "Touchpad'i yeniden tanıt")).clicked() {
+                crate::gesture::set_mode(crate::gesture::MODE_CALIBRATE);
+            }
         }
     });
-    if !ed.shape_status.is_empty() {
-        ui.label(RichText::new(&ed.shape_status).size(12.5).color(c.muted));
+    if !status.is_empty() {
+        ui.label(RichText::new(status.as_str()).size(12.5).color(c.muted));
     }
     muted(ui, c, t("Draw the shape without clicking. When you later draw it anywhere, the shortcut runs.", "Şekli tıklamadan çizin. Daha sonra herhangi bir yerde çizdiğinizde kısayol çalışır."));
 }
@@ -534,7 +544,7 @@ fn body(app: &mut App, ui: &mut egui::Ui, st: &mut State) {
             ui.end_row();
             if ed.shape {
                 ui.label(t("Shape", "Şekil"));
-                ui.vertical(|ui| shape_box(ui, &c, ed, &st.gestures.device));
+                ui.vertical(|ui| shape_box(ui, &c, &mut ed.trace, &mut ed.drawing, &mut ed.shape_status, &st.gestures.device));
                 ui.end_row();
             }
             if !ed.shape {

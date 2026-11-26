@@ -765,16 +765,7 @@ unsafe extern "system" fn ms_proc(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::mpsc::{channel, Receiver};
-
-    fn events() -> &'static parking_lot::Mutex<Receiver<crate::UiEvent>> {
-        static R: OnceLock<parking_lot::Mutex<Receiver<crate::UiEvent>>> = OnceLock::new();
-        R.get_or_init(|| {
-            let (tx, rx) = channel();
-            let _ = crate::UI_TX.set(parking_lot::Mutex::new(tx));
-            parking_lot::Mutex::new(rx)
-        })
-    }
+    use std::sync::mpsc::Receiver;
 
     fn hook() -> Hook {
         let now = Instant::now();
@@ -817,7 +808,7 @@ mod tests {
     // One test so the shared MODE/CONFIG globals are not raced by parallel tests.
     #[test]
     fn capture_and_matching() {
-        let rx = events().lock();
+        let rx = crate::test_events();
         captured(&rx);
         config().write().guide_enabled = false;
         MODE.store(MODE_CAPTURE, Ordering::SeqCst);

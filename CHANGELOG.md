@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.0.1 - 2026-11-26
+
+- Fix touchpad shapes on Windows: the UI toolkit took over raw pointer input, so detection never finished and shapes never triggered. Makro+ now keeps the registration.
+- Read touchpads that report absolute positions (many Precision Touchpads) and identify touchpads without a device name.
+- Add Cancel to touchpad detection and stop waiting after 20 seconds with an explanation.
+- Create with AI can now use a touchpad shape as the trigger.
+- Add touchpad unit tests and a real Raw Input end-to-end test.
+
 ## 3.0.0 - 2026-11-26
 
 - Rewrite Makro+ in Rust as a single native executable for Windows and Linux; no .NET runtime. Import 2.x settings automatically without changing them.

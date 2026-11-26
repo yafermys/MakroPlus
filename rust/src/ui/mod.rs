@@ -370,29 +370,38 @@ impl App {
                 UiEvent::Scan(r) => self.apps.on_scan(r, st, &mut self.status),
                 UiEvent::UpdateChecked => {}
                 UiEvent::GestureDevice(d) => {
+                    let what = if d == crate::gesture::PRECISION { t("Precision Touchpad", "Precision Touchpad").to_string() } else { crate::model::short(&d, 60) };
                     st.gestures.device = d;
-                    if let Some(ed) = &mut self.editor {
-                        ed.shape_status = t("Touchpad detected. Now draw your shape.", "Touchpad tanındı. Şimdi şeklinizi çizin.").into();
+                    let msg = crate::i18n::ts(format!("Detected: {what}. Now draw your shape. Wrong device? Detect again and touch only the touchpad."), format!("Tanınan: {what}. Şimdi şeklinizi çizin. Yanlış aygıt mı? Yeniden tanıtın ve yalnızca touchpad'e dokunun."));
+                    match &mut self.editor {
+                        Some(ed) => ed.shape_status = msg.clone(),
+                        None => self.prompt.shape_status = msg.clone(),
                     }
                     self.settings.msg = t("Touchpad detected.", "Touchpad tanındı.").into();
                     self.commit(st);
                 }
                 UiEvent::GestureStatus(s) => {
-                    if let Some(ed) = &mut self.editor {
-                        ed.shape_status = s;
+                    match &mut self.editor {
+                        Some(ed) => ed.shape_status = s.clone(),
+                        None => self.prompt.shape_status = s.clone(),
                     }
+                    self.settings.msg = s;
                 }
-                UiEvent::GestureTrace(p) => {
-                    if let Some(ed) = &mut self.editor {
-                        ed.trace = p;
-                    }
-                }
+                UiEvent::GestureTrace(p) => match &mut self.editor {
+                    Some(ed) => ed.trace = p,
+                    None => self.prompt.trace = p,
+                },
                 UiEvent::GestureRecorded(p) => {
+                    let msg = t("Shape recorded. Save to use it.", "Şekil kaydedildi. Kullanmak için kaydedin.").to_string();
                     if let Some(ed) = &mut self.editor {
                         ed.trace = p.clone();
                         ed.b.gesture = Some(crate::model::ShapeTemplate { points: p });
                         ed.drawing = false;
-                        ed.shape_status = t("Shape recorded. Save to use it.", "Şekil kaydedildi. Kullanmak için kaydedin.").into();
+                        ed.shape_status = msg;
+                    } else {
+                        self.prompt.trace = p;
+                        self.prompt.drawing = false;
+                        self.prompt.shape_status = t("Shape recorded. Now describe what it should do.", "Şekil kaydedildi. Şimdi ne yapması gerektiğini yazın.").into();
                     }
                 }
                 UiEvent::AiText(tag, r) => match tag.as_str() {

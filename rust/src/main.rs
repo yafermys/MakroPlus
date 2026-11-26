@@ -88,6 +88,19 @@ static CTX: OnceLock<eframe::egui::Context> = OnceLock::new();
 static SAVE_PENDING: AtomicBool = AtomicBool::new(false);
 static SAVE_SIGNAL: (std::sync::Mutex<bool>, std::sync::Condvar) = (std::sync::Mutex::new(false), std::sync::Condvar::new());
 
+/// Tests share one UI event channel; holding this lock serialises them.
+#[cfg(test)]
+pub fn test_events() -> parking_lot::MutexGuard<'static, Receiver<UiEvent>> {
+    static R: OnceLock<Mutex<Receiver<UiEvent>>> = OnceLock::new();
+    R.get_or_init(|| {
+        let (tx, rx) = channel();
+        let _ = UI_TX.set(Mutex::new(tx));
+        let _ = STATE.set(Mutex::new(model::State::default()));
+        Mutex::new(rx)
+    })
+    .lock()
+}
+
 pub fn ctx() -> Option<&'static eframe::egui::Context> {
     CTX.get()
 }
@@ -249,6 +262,9 @@ fn main() {
     engine::start();
     shell::start();
     gesture::start();
+    if has("--test-gesture-calibrate") {
+        gesture::set_mode(gesture::MODE_CALIBRATE);
+    }
     // Check for a newer release on every start (unless turned off in Settings).
     if updates::enabled(&app_state().lock()) && !has("--snapshot") {
         updates::check_async(true);

@@ -166,6 +166,9 @@ fn best_match<'a>(stroke: &[GesturePoint], cands: &'a [Prepared], o: &GestureOpt
 
 // ---------------- raw pointer input ----------------
 
+/// Name used for pointer input without a device handle (Windows Precision Touchpad).
+pub const PRECISION: &str = "precision-touchpad";
+
 pub const MODE_LISTEN: u8 = 0;
 pub const MODE_RECORD: u8 = 1;
 pub const MODE_CALIBRATE: u8 = 2;
@@ -196,8 +199,47 @@ pub fn sync(state: &crate::model::State) {
     s.paused = state.paused;
 }
 
+static CALIBRATE_SINCE: parking_lot::Mutex<Option<Instant>> = parking_lot::Mutex::new(None);
+type Samples = (std::collections::BTreeMap<String, f64>, Option<Instant>);
+static CAL_SAMPLES: parking_lot::Mutex<Samples> = parking_lot::Mutex::new((std::collections::BTreeMap::new(), None));
+
+fn finish_calibration() {
+    let mut g = CAL_SAMPLES.lock();
+    let pick = if g.0.contains_key(PRECISION) { Some(PRECISION.to_string()) } else { g.0.iter().max_by(|a, b| a.1.total_cmp(b.1)).map(|(k, _)| k.clone()) };
+    g.0.clear();
+    g.1 = None;
+    drop(g);
+    if let Some(d) = pick {
+        set_mode(MODE_LISTEN);
+        crate::send_ui(crate::UiEvent::GestureDevice(d));
+    }
+}
+
 pub fn set_mode(m: u8) {
+    if m == MODE_CALIBRATE {
+        let mut g = CAL_SAMPLES.lock();
+        g.0.clear();
+        g.1 = None;
+    }
+    *CALIBRATE_SINCE.lock() = if m == MODE_CALIBRATE { Some(Instant::now()) } else { None };
     MODE.store(m, Ordering::SeqCst);
+}
+
+/// Give up detection after 20 s without touchpad movement.
+fn check_calibration_timeout() {
+    let ready = CAL_SAMPLES.lock().1.map(|t| t.elapsed() >= Duration::from_millis(900)).unwrap_or(false);
+    if ready && MODE.load(Ordering::Relaxed) == MODE_CALIBRATE {
+        finish_calibration();
+        return;
+    }
+    let expired = CALIBRATE_SINCE.lock().map(|t| t.elapsed() > Duration::from_secs(20)).unwrap_or(false);
+    if expired && MODE.load(Ordering::Relaxed) == MODE_CALIBRATE {
+        set_mode(MODE_LISTEN);
+        crate::send_ui(crate::UiEvent::GestureStatus(t(
+            "No touchpad movement was seen. Move one finger on the touchpad right after clicking Detect, or check that the touchpad is enabled.",
+            "Touchpad hareketi algılanmadı. Tanıt'a tıkladıktan hemen sonra touchpad'de tek parmağınızı gezdirin veya touchpad'in açık olduğunu kontrol edin.",
+        ).into()));
+    }
 }
 
 struct Stroke {
@@ -231,6 +273,7 @@ pub fn feed_delta(dx: f64, dy: f64, device: String, buttons: bool) {
 
 /// Called periodically to end a stroke after a pause.
 pub fn tick() {
+    check_calibration_timeout();
     with_stroke(finish);
 }
 
@@ -256,9 +299,17 @@ fn feed(s: &mut Stroke, dx: f64, dy: f64, device: String, buttons: bool) {
         return;
     }
     if mode == MODE_CALIBRATE {
-        set_mode(MODE_LISTEN);
+        // Collect movement for a moment, then pick the touchpad: a device without
+        // a handle (Precision Touchpad) wins, otherwise the one that moved most.
+        let mut g = CAL_SAMPLES.lock();
+        let first = g.1.get_or_insert(now);
+        let started = *first;
+        *g.0.entry(device).or_insert(0.0) += dx.abs() + dy.abs() + 1.0;
+        drop(g);
+        if now.duration_since(started) >= Duration::from_millis(900) {
+            finish_calibration();
+        }
         reset(s);
-        crate::send_ui(crate::UiEvent::GestureDevice(device));
         return;
     }
     let sh = shared().read();
@@ -374,9 +425,14 @@ mod raw {
     use windows_sys::Win32::UI::Input::*;
     use windows_sys::Win32::UI::WindowsAndMessaging::*;
 
+thread_local! {
+    static LAST_ABS: std::cell::RefCell<std::collections::HashMap<String, (f64, f64)>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
 fn device_name(h: HANDLE) -> String {
     if h.is_null() {
-        return String::new();
+        // Precision touchpads usually arrive without a device handle.
+        return PRECISION.to_string();
     }
     unsafe {
         let mut n = 0u32;
@@ -390,8 +446,20 @@ fn device_name(h: HANDLE) -> String {
     }
 }
 
+/// `--debug-input`: log raw pointer input to data/input-debug.log.
+fn raw_debug(line: String) {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *ON.get_or_init(|| std::env::args().any(|a| a == "--debug-input")) {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(crate::storage::data_dir().join("input-debug.log")) {
+            let _ = writeln!(f, "raw: {line}");
+        }
+    }
+}
+
 unsafe extern "system" fn proc_(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> LRESULT {
     if msg == WM_INPUT {
+        raw_debug("WM_INPUT".into());
         let mut size = 0u32;
         let header = std::mem::size_of::<RAWINPUTHEADER>() as u32;
         GetRawInputData(l as HRAWINPUT, RID_INPUT, std::ptr::null_mut(), &mut size, header);
@@ -404,8 +472,25 @@ unsafe extern "system" fn proc_(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> L
                     let flags = m.Anonymous.Anonymous.usButtonFlags;
                     let buttons = flags & 0x03FF != 0;
                     let absolute = m.usFlags & 1 != 0;
-                    if !absolute && (m.lLastX != 0 || m.lLastY != 0 || buttons) {
-                        let dev = device_name(raw.header.hDevice);
+                    let dev = device_name(raw.header.hDevice);
+                    if absolute {
+                        // Many touchpads report absolute 0..65535 positions: turn them into movement.
+                        let virt = m.usFlags & 2 != 0;
+                        let (sw, sh) = if virt { (GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN)) } else { (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN)) };
+                        let px = m.lLastX as f64 * sw.max(1) as f64 / 65535.0;
+                        let py = m.lLastY as f64 * sh.max(1) as f64 / 65535.0;
+                        let prev = LAST_ABS.with(|c| c.borrow_mut().insert(dev.clone(), (px, py)));
+                        match prev {
+                            Some((lx, ly)) => {
+                                let (dx, dy) = (px - lx, py - ly);
+                                // A jump means a new touch, not movement.
+                                if dx.abs() < 400.0 && dy.abs() < 400.0 && (dx != 0.0 || dy != 0.0 || buttons) {
+                                    feed_delta(dx, dy, dev, buttons);
+                                }
+                            }
+                            None => feed_delta(0.0, 0.0, dev, buttons),
+                        }
+                    } else if m.lLastX != 0 || m.lLastY != 0 || buttons {
                         feed_delta(m.lLastX as f64, m.lLastY as f64, dev, buttons);
                     }
                 }
@@ -415,9 +500,28 @@ unsafe extern "system" fn proc_(hwnd: HWND, msg: u32, w: WPARAM, l: LPARAM) -> L
     }
     if msg == WM_TIMER {
         tick();
+        ensure_registration(hwnd);
         return 0;
     }
     DefWindowProcW(hwnd, msg, w, l)
+}
+
+/// Raw input has one target window per process; the UI toolkit registers its
+/// own window for mouse input when it starts, so take the target back.
+unsafe fn ensure_registration(hwnd: HWND) {
+    static TICKS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    if TICKS.fetch_add(1, Ordering::Relaxed) % 16 != 0 {
+        return;
+    }
+    let mut list = [RAWINPUTDEVICE { usUsagePage: 0, usUsage: 0, dwFlags: 0, hwndTarget: std::ptr::null_mut() }; 16];
+    let mut n = list.len() as u32;
+    let got = GetRegisteredRawInputDevices(list.as_mut_ptr(), &mut n, std::mem::size_of::<RAWINPUTDEVICE>() as u32);
+    let ours = got != u32::MAX && list[..(got as usize).min(16)].iter().any(|d| d.usUsagePage == 1 && d.usUsage == 2 && d.hwndTarget == hwnd);
+    if !ours {
+        let dev = RAWINPUTDEVICE { usUsagePage: 1, usUsage: 2, dwFlags: RIDEV_INPUTSINK, hwndTarget: hwnd };
+        let ok = RegisterRawInputDevices(&dev, 1, std::mem::size_of::<RAWINPUTDEVICE>() as u32);
+        raw_debug(format!("re-register ok={ok}"));
+    }
 }
 
 pub fn start() {
@@ -443,7 +547,8 @@ pub fn start() {
             RegisterClassExW(&wc);
             let hwnd = CreateWindowExW(0, class.as_ptr(), wide("Makro+ gesture").as_ptr(), 0, 0, 0, 0, 0, HWND_MESSAGE, std::ptr::null_mut(), module, std::ptr::null());
             let dev = RAWINPUTDEVICE { usUsagePage: 1, usUsage: 2, dwFlags: RIDEV_INPUTSINK, hwndTarget: hwnd };
-            RegisterRawInputDevices(&dev, 1, std::mem::size_of::<RAWINPUTDEVICE>() as u32);
+            let ok = RegisterRawInputDevices(&dev, 1, std::mem::size_of::<RAWINPUTDEVICE>() as u32);
+            raw_debug(format!("register ok={ok} err={} hwnd={:?}", windows_sys::Win32::Foundation::GetLastError(), hwnd));
             SetTimer(hwnd, 1, 60, None);
             let mut msg: MSG = std::mem::zeroed();
             while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
@@ -480,6 +585,69 @@ mod tests {
     fn zigzag(n: usize) -> Vec<GesturePoint> {
         (0..n).map(|i| GesturePoint { x: i as f64 * 10.0, y: if i % 2 == 0 { 0.0 } else { 60.0 } }).collect()
     }
+    fn feed_circle(r: f64) {
+        let pts = circle(60, r, 0.0);
+        for w in pts.windows(2) {
+            feed_delta(w[1].x - w[0].x, w[1].y - w[0].y, PRECISION.to_string(), false);
+            std::thread::sleep(Duration::from_millis(8));
+        }
+    }
+
+    /// Calibration, recording and triggering through the shared stroke logic.
+    #[test]
+    fn detect_record_and_trigger() {
+        let rx = crate::test_events();
+        while rx.try_recv().is_ok() {}
+        let mut st = crate::model::State::default();
+        st.gestures.device = String::new();
+        sync(&st);
+        // 1) Detection reports the touchpad on the first movement.
+        set_mode(MODE_CALIBRATE);
+        feed_delta(3.0, 1.0, PRECISION.to_string(), false);
+        feed_delta(40.0, 5.0, "usb-mouse".to_string(), false);
+        std::thread::sleep(Duration::from_millis(950));
+        tick();
+        let got = rx.try_iter().any(|e| matches!(e, crate::UiEvent::GestureDevice(ref d) if d == PRECISION));
+        assert!(got, "device not detected");
+        assert_eq!(MODE.load(Ordering::SeqCst), MODE_LISTEN);
+        // 2) Recording returns the drawn points after a pause.
+        st.gestures.device = PRECISION.into();
+        sync(&st);
+        set_mode(MODE_RECORD);
+        std::thread::sleep(Duration::from_millis(20));
+        feed_circle(150.0);
+        std::thread::sleep(Duration::from_millis(700));
+        tick();
+        let rec = rx.try_iter().find_map(|e| if let crate::UiEvent::GestureRecorded(p) = e { Some(p) } else { None });
+        let rec = rec.expect("shape not recorded");
+        assert!(rec.len() >= 8);
+        // 3) Drawing the saved shape runs its shortcut.
+        let out = std::env::temp_dir().join(format!("makro-shape-{}.txt", std::process::id()));
+        let _ = std::fs::remove_file(&out);
+        let mut step = crate::model::ActionStep::new("Write file");
+        step.path = Some(out.display().to_string());
+        step.text = "shape ok".into();
+        st.bindings = vec![Binding { name: "circle".into(), gesture: Some(ShapeTemplate { points: rec }), steps: Some(vec![step]), ..Default::default() }];
+        sync(&st);
+        std::thread::sleep(Duration::from_millis(1000));
+        feed_circle(220.0);
+        std::thread::sleep(Duration::from_millis(700));
+        tick();
+        for _ in 0..40 {
+            if out.exists() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert_eq!(std::fs::read_to_string(&out).unwrap_or_default().trim(), "shape ok");
+        let _ = std::fs::remove_file(&out);
+        // 4) Detection gives up instead of waiting forever.
+        set_mode(MODE_CALIBRATE);
+        *CALIBRATE_SINCE.lock() = Some(Instant::now() - Duration::from_secs(25));
+        tick();
+        assert_eq!(MODE.load(Ordering::SeqCst), MODE_LISTEN);
+    }
+
     #[test]
     fn recognises() {
         let c1 = circle(80, 100.0, 0.0);
