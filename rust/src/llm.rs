@@ -1006,7 +1006,7 @@ mod tests {
 
     #[test]
     fn multi_app_plan() {
-        let notepad = "C:\\Windows\\System32\\notepad.exe".to_string();
+        let notepad = if cfg!(windows) { "C:\\Windows\\System32\\notepad.exe" } else { "/usr/bin/gedit" }.to_string();
         let r = req("Ctrl+Shift+1 ile seçimi Not Defteri'ne yapıştır", vec![notepad.clone()]);
         let content = r#"Sure! {"status":"ready","name":"Seçimi Not Defteri'ne","trigger":"","app_id":"global","message":"","notes":[],
           "steps":[{"kind":"copy_selection"},{"kind":"focus_app","app_id":"app0"},{"kind":"key","combo":"Ctrl+End"},{"kind":"paste_text","text":"{newline}{selection}","app_id":"app0"},{"kind":"save"},
