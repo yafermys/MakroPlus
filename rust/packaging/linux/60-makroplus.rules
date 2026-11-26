@@ -1,0 +1,2 @@
+# Makro+: let members of the 'input' group create the virtual input device.
+KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"

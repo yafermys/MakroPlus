@@ -1,0 +1,72 @@
+name: Makro+ 3 (Windows + Linux)
+on:
+  push:
+    branches: [main, 'feature/**']
+    tags: ['v3*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Unit tests (key capture, hooks logic, shapes, AI plans, updates)
+        run: cargo test --release
+      - name: Build
+        run: cargo build --release
+
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxkbcommon-dev libgl1-mesa-dev libwayland-dev libx11-dev rpm file libfuse2
+      - name: Unit tests
+        run: cargo test --release
+      - name: Build
+        run: cargo build --release
+      - name: Package (.deb, .rpm, AppImage, tar.gz)
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          OUT=$PWD/dist-linux; mkdir -p "$OUT"
+          cargo install --locked cargo-deb@2.9.0 cargo-generate-rpm@0.16.0
+          cargo deb --no-build --no-strip -o "$OUT/makroplus_${VERSION}_amd64.deb"
+          cargo generate-rpm -o "$OUT/makroplus-${VERSION}-1.x86_64.rpm"
+          # AppImage
+          APP=$PWD/AppDir; rm -rf "$APP"; mkdir -p "$APP/usr/bin"
+          cp target/release/MakroPlus "$APP/usr/bin/makroplus"
+          cp packaging/linux/makroplus.desktop "$APP/makroplus.desktop"
+          cp assets/logo.png "$APP/makroplus.png"
+          printf '#!/bin/sh\nexec "$(dirname "$(readlink -f "$0")")/usr/bin/makroplus" "$@"\n' > "$APP/AppRun"; chmod +x "$APP/AppRun"
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool "$APP" "$OUT/MakroPlus-${VERSION}-x86_64.AppImage"
+          # Portable tarball
+          T=$PWD/MakroPlus-${VERSION}-linux-x86_64; rm -rf "$T"; mkdir -p "$T"
+          cp target/release/MakroPlus "$T/makroplus"
+          cp packaging/linux/makroplus.desktop packaging/linux/60-makroplus.rules assets/logo.png ../LICENSE ../THIRD_PARTY_NOTICES.md "$T/"
+          cp packaging/linux/README-linux.txt "$T/README.txt"
+          tar -czf "$OUT/MakroPlus-${VERSION}-linux-x86_64.tar.gz" -C "$PWD" "$(basename "$T")"
+          cd "$OUT" && for f in *; do sha256sum "$f" > "$f.sha256"; done && ls -la
+      - uses: actions/upload-artifact@v4
+        with:
+          name: makroplus-linux
+          path: rust/dist-linux/*
+      - name: Attach to the GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" dist-linux/* --clobber

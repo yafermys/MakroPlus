@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Makro+
+GenericName=Shortcut automation
+Comment=Keyboard, mouse and touchpad shortcuts, multi-app workflows and clipboard
+Comment[tr]=Klavye, fare ve touchpad kısayolları, çok uygulamalı iş akışları ve pano
+Exec=makroplus
+Icon=makroplus
+Terminal=false
+Categories=Utility;
+Keywords=shortcut;macro;hotkey;clipboard;automation;
+StartupWMClass=makroplus

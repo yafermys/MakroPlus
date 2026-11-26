@@ -38,3 +38,10 @@ staging your intended files. See [SECURITY.md](SECURITY.md) for reporting issues
 
 Contributions are made under the project's GPL-3.0-only license. Keep independent
 third-party notices and record any new dependency and its license.
+
+## Makro+ 3 (Rust, ust/)
+
+- Windows: `.\rust\build.ps1 -Release -Package` (GNU or MSVC Rust toolchain). Run `cargo test` in `rust`.
+- End-to-end hook test (sends harmless F13/F14/F23 keys): `.\rust\tools\e2e-test.ps1 -Exe <MakroPlus.exe> -Dir <empty folder>`.
+- Linux: `cargo build --release` in `rust` on x86_64; packages are produced by `.github/workflows/rust.yml`.
+- Public screenshots must use `rust\tools\demo-data.ps1` (synthetic data only).

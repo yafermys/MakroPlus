@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.0.0 - 2026-11-26
+
+- Rewrite Makro+ in Rust as a single native executable for Windows and Linux; no .NET runtime. Import 2.x settings automatically without changing them.
+- Add multi-app workflows: focus/start apps, copy selection, paste text or files, wait for windows, save, copy/move/read/write files, window actions and variables passed between steps.
+- Add in-app automation on Windows: scan menus, buttons, tabs and fields; run menu commands, click elements, fill and read fields; assign any scanned command to a key.
+- Add a Clipboard page with history, search, pinning, editing, AI transformations and paste shortcuts; skip content marked private by password managers.
+- Expand AI planning to 46 step types, 200 steps, two correction rounds and scanned in-app context; add AI steps that run when a shortcut runs.
+- Bring back touchpad shape triggers inside the shortcut editor; add switched-off keys; run shortcuts immediately with Run now.
+- Fix key recording that dropped modifiers when they were released before an F-key, Delete or Insert.
+- Make the shortcut guide configurable (app, global, all apps, app's own, Windows) and optionally reserve the guide key.
+- Add 10 new themes, themes from scratch, image/GIF/video backgrounds and automatic themes from a background.
+- Remove the system title strip so maximised and full-screen windows use the whole screen; add F11 full screen.
+- Add optional per-user installation (Start menu, Installed apps, uninstaller) while keeping the portable exe; check for updates on every start.
+- Add Linux builds (.deb, .rpm, AppImage, .tar.gz) using evdev/uinput, StatusNotifierItem tray and XDG paths.
+- Add Rust CI for Windows and Linux, unit tests and a real-hook end-to-end test script.
 ## 2.8.0 - 2026-11-15
 
 - Notify users about newer stable Makro+ releases with a tray notification and persistent in-app release banner.

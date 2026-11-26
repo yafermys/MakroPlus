@@ -50,3 +50,6 @@ bin/
 *.suo
 Thumbs.db
 .DS_Store
+
+# Rust build output
+dist-rs/

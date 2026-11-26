@@ -1,0 +1,118 @@
+[package]
+name = "makroplus"
+version = "3.0.0"
+edition = "2021"
+description = "Makro+ - keyboard, mouse, touchpad and multi-app automation"
+license = "GPL-3.0-only"
+authors = ["Makro+ contributors"]
+homepage = "https://github.com/yafermys/MakroPlus"
+repository = "https://github.com/yafermys/MakroPlus"
+readme = "../README.md"
+publish = false
+
+[features]
+default = ["net"]
+# HTTP(S) for remote AI models and update checks.
+net = ["dep:ureq"]
+
+[[bin]]
+name = "MakroPlus"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.29.1", default-features = false, features = ["glow", "default_fonts", "accesskit"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case"] }
+parking_lot = "0.12"
+
+[target.'cfg(windows)'.dependencies]
+ureq = { version = "2.10", default-features = false, features = ["json", "native-tls"], optional = true }
+native-tls = "0.2"
+rfd = "0.15"
+winreg = "0.52"
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59"
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_Security",
+  "Win32_Security_Cryptography",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Ole",
+  "Win32_System_Threading",
+  "Win32_System_JobObjects",
+  "Win32_System_Shutdown",
+  "Win32_System_SystemServices",
+  "Win32_UI_Input",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+]
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "=0.58.0"
+features = [
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_Variant",
+  "Win32_System_Ole",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Shell",
+  "Win32_Media_MediaFoundation",
+]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ureq = { version = "2.10", default-features = false, features = ["json", "tls"], optional = true }
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "async-std"] }
+evdev = "0.12"
+libc = "0.2"
+x11rb = { version = "0.13", default-features = false }
+arboard = { version = "3.4", default-features = false, features = ["wayland-data-control", "image-data"] }
+ksni = { version = "0.3", features = ["blocking"] }
+eframe = { version = "0.29.1", default-features = false, features = ["x11", "wayland"] }
+
+[package.metadata.deb]
+name = "makroplus"
+maintainer = "Makro+ contributors"
+copyright = "Makro+ contributors, GPL-3.0-only"
+extended-description = "Keyboard, mouse and touchpad shortcuts with multi-app workflows, a clipboard manager and optional AI planning."
+section = "utils"
+priority = "optional"
+depends = "$auto"
+recommends = "xdotool, wmctrl, ffmpeg"
+assets = [
+  ["target/release/MakroPlus", "usr/bin/makroplus", "755"],
+  ["packaging/linux/makroplus.desktop", "usr/share/applications/", "644"],
+  ["assets/logo.png", "usr/share/icons/hicolor/256x256/apps/makroplus.png", "644"],
+  ["packaging/linux/60-makroplus.rules", "usr/lib/udev/rules.d/", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "makroplus"
+license = "GPL-3.0-only"
+summary = "Keyboard, mouse and touchpad automation"
+assets = [
+  { source = "target/release/MakroPlus", dest = "/usr/bin/makroplus", mode = "755" },
+  { source = "packaging/linux/makroplus.desktop", dest = "/usr/share/applications/makroplus.desktop", mode = "644" },
+  { source = "assets/logo.png", dest = "/usr/share/icons/hicolor/256x256/apps/makroplus.png", mode = "644" },
+  { source = "packaging/linux/60-makroplus.rules", dest = "/usr/lib/udev/rules.d/60-makroplus.rules", mode = "644" },
+]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1
+

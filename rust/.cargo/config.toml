@@ -1,0 +1,2 @@
+# Build output location is set by build.ps1 (CARGO_TARGET_DIR) on Windows,
+# because paths with non-ASCII characters can confuse the MinGW linker.
